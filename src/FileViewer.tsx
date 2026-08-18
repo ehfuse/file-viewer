@@ -1742,8 +1742,10 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     <Box
                         sx={{
                             width: "100%",
-                            maxHeight: "100vh",
-                            overflow: "auto",
+                            // 명시 높이가 없으면 내부 height:100% → Monaco height:100% 가 기준을 잃고
+                            // 소스코드 모드 에디터가 얇은 띠로 붕괴한다 — 다른 타입과 같은 고정 높이를 준다.
+                            height: "calc(100vh - 60px)",
+                            overflow: "hidden",
                             borderRadius: 1,
                         }}
                     >
@@ -2143,6 +2145,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     backgroundColor: "grey.800",
                     color: "white",
                     height: "60px",
+                    // 본문 높이 계산(calc(100vh - 60px))의 기준 — 전역 리셋(CssBaseline) 없이
+                    // content-box 로 렌더되면 패딩만큼 60px 를 넘어 하단(시트 탭 등)이 잘린다.
+                    boxSizing: "border-box",
                     userSelect: "none",
                     // 모바일: 좌우 패딩을 줄여 메뉴 아이콘/닫기 버튼이 화면 끝에 붙게 한다.
                     px: isMobile ? 1 : 3,

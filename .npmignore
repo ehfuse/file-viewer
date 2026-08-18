@@ -1,0 +1,11 @@
+src/
+example/
+docs/
+node_modules/
+build.js
+esbuild.config.js
+generate-types.js
+tsconfig.json
+.gitignore
+*.tgz
+.DS_Store

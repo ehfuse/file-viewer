@@ -1,6 +1,6 @@
 {
     "name": "@ehfuse/file-viewer",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "type": "module",
     "description": "React 파일 미리보기 다이얼로그 (이미지/PDF/텍스트/코드/HTML/스프레드시트/비디오/오디오, MUI 기반)",
     "publishConfig": {
@@ -42,7 +42,13 @@
             "types": "./dist/index.d.ts",
             "import": "./dist/index.esm.js",
             "require": "./dist/index.js"
-        }
+        },
+        "./icons": {
+            "types": "./dist/icons/index.d.ts",
+            "import": "./dist/icons.esm.js",
+            "require": "./dist/icons.js"
+        },
+        "./package.json": "./package.json"
     },
     "scripts": {
         "build": "node build.js",

@@ -37,6 +37,12 @@ async function buildAll() {
             format: "esm",
         });
 
+        // 아이콘 전용 서브패스(@ehfuse/file-viewer/icons) — 뷰어 본체(pdf/monaco/xlsx) 없이 아이콘만 쓰는 소비처용
+        await build({ ...sharedConfig, entryPoints: ["src/icons/index.ts"], outfile: "dist/icons.js", format: "cjs" });
+        await build({ ...sharedConfig, entryPoints: ["src/icons/index.ts"], outfile: "dist/icons.esm.js", format: "esm" });
+        let iconsEsm = readFileSync("dist/icons.esm.js", "utf8");
+        writeFileSync("dist/icons.esm.js", iconsEsm.replaceAll("require", "undefined"), "utf8");
+
         // ESM 파일에서 require 제거
         let esmContent = readFileSync("dist/index.esm.js", "utf8");
         esmContent = esmContent.replaceAll("require", "undefined");

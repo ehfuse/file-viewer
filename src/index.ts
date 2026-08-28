@@ -9,4 +9,4 @@ export {
     getEditorLanguage,
 } from "./utils/fileType";
 export { saveBlobAsFile } from "./utils/download";
-export { ImageIcon, PdfIcon, HtmlIcon, FileTypeIcon, getFileTypeIcon, type FileTypeIconProps } from "./icons";
+export { ImageIcon, PdfIcon, HtmlIcon, ZipIcon, FileTypeIcon, getFileTypeIcon, type FileTypeIconProps } from "./icons";

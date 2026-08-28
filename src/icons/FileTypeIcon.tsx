@@ -15,6 +15,7 @@ import { resolveFileType } from "../utils/fileType";
 import { ImageIcon } from "./ImageIcon";
 import { PdfIcon } from "./PdfIcon";
 import { HtmlIcon } from "./HtmlIcon";
+import { ZipIcon } from "./ZipIcon";
 
 /** 파일 종류별 아이콘 요소(size = px). */
 export function getFileTypeIcon(fileType: ViewerFileType | string, size = 22): ReactElement {
@@ -27,6 +28,8 @@ export function getFileTypeIcon(fileType: ViewerFileType | string, size = 22): R
             return <PdfIcon width={px} height={px} />;
         case "html":
             return <HtmlIcon width={px} height={px} />;
+        case "archive":
+            return <ZipIcon width={px} height={px} />;
         case "text":
             return <TextSnippetIcon sx={{ ...sx, color: "#66BB6A" }} />;
         case "spreadsheet":
@@ -50,7 +53,12 @@ export interface FileTypeIconProps {
     size?: number; // px(기본 22)
 }
 
-/** 파일명/MIME 으로 종류를 정해 아이콘을 그린다. */
+/** 압축 파일 확장자 */
+const ARCHIVE_EXTENSIONS = new Set(["zip", "rar", "7z", "gz", "tgz", "tar", "bz2", "xz", "alz", "egg"]);
+
+/** 파일명/MIME 으로 종류를 정해 아이콘을 그린다(압축 파일은 뷰어 타입이 없어 확장자로 따로 본다). */
 export function FileTypeIcon({ fileName, mime, size = 22 }: FileTypeIconProps) {
+    const ext = fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".") + 1).toLowerCase() : "";
+    if (ARCHIVE_EXTENSIONS.has(ext)) return getFileTypeIcon("archive", size);
     return getFileTypeIcon(resolveFileType(fileName, mime ?? ""), size);
 }

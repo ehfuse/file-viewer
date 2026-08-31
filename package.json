@@ -1,6 +1,6 @@
 {
     "name": "@ehfuse/file-viewer",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "type": "module",
     "description": "React 파일 미리보기 다이얼로그 (이미지/PDF/텍스트/코드/HTML/스프레드시트/비디오/오디오, MUI 기반)",
     "publishConfig": {

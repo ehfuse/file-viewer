@@ -2569,6 +2569,47 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     </Tooltip>
                 </Box>
             </DialogTitle>
+            {/* 다중 파일 — 본문 좌우 오버레이 화살표(헤더 ◀ n/m ▶ 와 같은 탐색). 끝에서는 해당 방향을 숨긴다. */}
+            {fileList.length > 1 && fileIndex > 0 ? (
+                <IconButton
+                    aria-label="이전 파일"
+                    onClick={() => setFileIndex((index) => Math.max(index - 1, 0))}
+                    sx={{
+                        position: "fixed",
+                        left: 12,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        zIndex: 10,
+                        color: "white",
+                        backgroundColor: "rgba(0, 0, 0, 0.35)",
+                        "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.55)" },
+                        width: 44,
+                        height: 44,
+                    }}
+                >
+                    <KeyboardArrowLeftIcon sx={{ fontSize: 30 }} />
+                </IconButton>
+            ) : null}
+            {fileList.length > 1 && fileIndex < fileList.length - 1 ? (
+                <IconButton
+                    aria-label="다음 파일"
+                    onClick={() => setFileIndex((index) => Math.min(index + 1, fileList.length - 1))}
+                    sx={{
+                        position: "fixed",
+                        right: 12,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        zIndex: 10,
+                        color: "white",
+                        backgroundColor: "rgba(0, 0, 0, 0.35)",
+                        "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.55)" },
+                        width: 44,
+                        height: 44,
+                    }}
+                >
+                    <KeyboardArrowRightIcon sx={{ fontSize: 30 }} />
+                </IconButton>
+            ) : null}
 
             <DialogContent
                 sx={{

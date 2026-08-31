@@ -13,6 +13,8 @@ export interface FileViewerProps {
     open: boolean; // 뷰어 열림 여부
     onClose: () => void; // 뷰어 닫기 콜백
     file: ViewerFile | null; // 표시할 파일 (null 이면 렌더하지 않음)
+    files?: ViewerFile[] | null; // 여러 파일을 넘기면 헤더 ◀ n/m ▶ 로 이전/다음 탐색(file 은 무시되고 initialIndex 파일부터)
+    initialIndex?: number; // files 사용 시 처음 보여줄 파일 순번(기본 0)
     loadFile?: (file: ViewerFile) => Promise<Blob>; // 커스텀 blob 로더 (blob/url 이 없는 파일용 — 인증 다운로더 등)
     onDownload?: (file: ViewerFile) => void | Promise<void>; // 다운로드 동작 대체 (기본: 로드된 blob 을 앵커로 저장)
     pdfAssetBase?: string; // pdfjs 자산(worker/cmaps/폰트/wasm) 정적 경로 (기본 "/pdfjs" — setup-pdfjs 스크립트 참고)

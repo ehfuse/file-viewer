@@ -124,7 +124,9 @@ const getPdfPageRotation = (page: any): number => {
 export const FileViewer: React.FC<FileViewerProps> = ({
     open,
     onClose,
-    file,
+    file: fileProp,
+    files = null,
+    initialIndex = 0,
     loadFile,
     onDownload,
     pdfAssetBase = DEFAULT_PDFJS_ASSET_BASE,
@@ -134,6 +136,15 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     // sm 이하(아주 좁은 폭): 페이지 표시를 "1/1" 대신 현재 페이지만 보여준다.
     const muiTheme = useTheme();
     const isNarrow = useMediaQuery(muiTheme.breakpoints.down("sm"));
+    // 다중 파일 — files 를 주면 이전/다음으로 넘겨 본다(기존 file 단일 사용과 호환).
+    const fileList = useMemo<ViewerFile[]>(() => (files && files.length > 0 ? files : []), [files]);
+    const [fileIndex, setFileIndex] = useState(0);
+    useEffect(() => {
+        if (!open) return;
+        setFileIndex(fileList.length > 0 ? Math.min(Math.max(initialIndex, 0), fileList.length - 1) : 0);
+    }, [open, initialIndex, fileList]);
+    // 아래 전체 로직이 보는 활성 파일 — 인덱스가 바뀌면 로드 체인이 새 파일로 다시 돈다.
+    const file = fileList.length > 0 ? (fileList[fileIndex] ?? fileProp) : fileProp;
     const [loading, setLoading] = useState(true);
     const [showLoading, setShowLoading] = useState(false); // 로딩 표시 상태 관리
     const [fileUrl, setFileUrl] = useState<string>("");
@@ -387,6 +398,23 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         if (typeof window === "undefined") return;
         pdfjs.GlobalWorkerOptions.workerSrc = `${pdfAssetBase}/pdf.worker.min.mjs`;
     }, [pdfAssetBase]);
+
+    // 다중 파일 이전/다음(← →) — PDF 는 화살표가 페이지 이동이라 제외한다.
+    useEffect(() => {
+        if (!open || fileList.length <= 1) return;
+        if (resolveFileType(file?.name || "", detectedMime) === "pdf") return;
+        const handleNavKey = (event: KeyboardEvent) => {
+            if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                setFileIndex((index) => Math.max(index - 1, 0));
+            } else if (event.key === "ArrowRight") {
+                event.preventDefault();
+                setFileIndex((index) => Math.min(index + 1, fileList.length - 1));
+            }
+        };
+        document.addEventListener("keydown", handleNavKey);
+        return () => document.removeEventListener("keydown", handleNavKey);
+    }, [open, fileList.length, file?.name, detectedMime]);
 
     // 키보드 이벤트 핸들러 (PDF 페이지 이동용)
     useEffect(() => {
@@ -2164,6 +2192,46 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         "& .MuiSvgIcon-root": { fontSize: isMobile ? "1.7rem" : undefined },
                     }}
                 >
+                    {/* 다중 파일 탐색 — ◀ n/m ▶ (여러 파일을 넘겨받았을 때만) */}
+                    {fileList.length > 1 ? (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 0 : 0.5 }}>
+                            <Tooltip title="이전 파일">
+                                <span style={{ display: "inline-flex" }}>
+                                    <IconButton
+                                        onClick={() => setFileIndex((index) => Math.max(index - 1, 0))}
+                                        disabled={fileIndex <= 0}
+                                        size="medium"
+                                        sx={{
+                                            color: "grey.300",
+                                            "&:hover": { color: "white", backgroundColor: "rgba(255, 255, 255, 0.08)" },
+                                            "&.Mui-disabled": { color: "rgba(255, 255, 255, 0.3)" },
+                                        }}
+                                    >
+                                        <KeyboardArrowLeftIcon />
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                            <Typography variant="body2" sx={{ color: "grey.300", minWidth: 40, textAlign: "center", userSelect: "none" }}>
+                                {fileIndex + 1} / {fileList.length}
+                            </Typography>
+                            <Tooltip title="다음 파일">
+                                <span style={{ display: "inline-flex" }}>
+                                    <IconButton
+                                        onClick={() => setFileIndex((index) => Math.min(index + 1, fileList.length - 1))}
+                                        disabled={fileIndex >= fileList.length - 1}
+                                        size="medium"
+                                        sx={{
+                                            color: "grey.300",
+                                            "&:hover": { color: "white", backgroundColor: "rgba(255, 255, 255, 0.08)" },
+                                            "&.Mui-disabled": { color: "rgba(255, 255, 255, 0.3)" },
+                                        }}
+                                    >
+                                        <KeyboardArrowRightIcon />
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                        </Box>
+                    ) : null}
                     {isMobile && fileType === "pdf" && numPages ? (
                         <Tooltip title="페이지 목록">
                             <IconButton

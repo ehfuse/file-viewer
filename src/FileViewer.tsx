@@ -416,6 +416,32 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         return () => document.removeEventListener("keydown", handleNavKey);
     }, [open, fileList.length, file?.name, detectedMime]);
 
+    // 다중 파일 좌우 스와이프(모바일) — 확대 중(scale>1)에는 패닝과 겹치므로 끄고, PDF 도 제외한다.
+    useEffect(() => {
+        if (!open || fileList.length <= 1) return;
+        if (resolveFileType(file?.name || "", detectedMime) === "pdf") return;
+        if (scale > 1) return;
+        let startX = 0;
+        let startY = 0;
+        const handleTouchStart = (event: TouchEvent) => {
+            startX = event.touches[0]?.clientX ?? 0;
+            startY = event.touches[0]?.clientY ?? 0;
+        };
+        const handleTouchEnd = (event: TouchEvent) => {
+            const deltaX = (event.changedTouches[0]?.clientX ?? 0) - startX;
+            const deltaY = (event.changedTouches[0]?.clientY ?? 0) - startY;
+            if (Math.abs(deltaX) < 60 || Math.abs(deltaY) > Math.abs(deltaX)) return;
+            if (deltaX < 0) setFileIndex((index) => Math.min(index + 1, fileList.length - 1));
+            else setFileIndex((index) => Math.max(index - 1, 0));
+        };
+        document.addEventListener("touchstart", handleTouchStart, { passive: true });
+        document.addEventListener("touchend", handleTouchEnd, { passive: true });
+        return () => {
+            document.removeEventListener("touchstart", handleTouchStart);
+            document.removeEventListener("touchend", handleTouchEnd);
+        };
+    }, [open, fileList.length, file?.name, detectedMime, scale]);
+
     // 키보드 이벤트 핸들러 (PDF 페이지 이동용)
     useEffect(() => {
         if (!open || resolveFileType(file?.name || "", detectedMime) !== "pdf") return;
@@ -2569,8 +2595,8 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     </Tooltip>
                 </Box>
             </DialogTitle>
-            {/* 다중 파일 — 본문 좌우 오버레이 화살표(헤더 ◀ n/m ▶ 와 같은 탐색). 끝에서는 해당 방향을 숨긴다. */}
-            {fileList.length > 1 && fileIndex > 0 ? (
+            {/* 다중 파일 — 본문 좌우 오버레이 화살표(데스크톱). 모바일은 내용을 가리지 않게 하단 바로 대신한다. */}
+            {!isMobile && fileList.length > 1 && fileIndex > 0 ? (
                 <IconButton
                     aria-label="이전 파일"
                     onClick={() => setFileIndex((index) => Math.max(index - 1, 0))}
@@ -2590,7 +2616,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     <KeyboardArrowLeftIcon sx={{ fontSize: 30 }} />
                 </IconButton>
             ) : null}
-            {fileList.length > 1 && fileIndex < fileList.length - 1 ? (
+            {!isMobile && fileList.length > 1 && fileIndex < fileList.length - 1 ? (
                 <IconButton
                     aria-label="다음 파일"
                     onClick={() => setFileIndex((index) => Math.min(index + 1, fileList.length - 1))}
@@ -2609,6 +2635,45 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                 >
                     <KeyboardArrowRightIcon sx={{ fontSize: 30 }} />
                 </IconButton>
+            ) : null}
+            {/* 모바일 — 하단 가운데 탐색 바(◀ n/m ▶). 좌우 스와이프로도 넘어간다. */}
+            {isMobile && fileList.length > 1 ? (
+                <Box
+                    sx={{
+                        position: "fixed",
+                        bottom: 18,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        zIndex: 10,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.5,
+                        px: 1,
+                        py: 0.25,
+                        borderRadius: 999,
+                        backgroundColor: "rgba(0, 0, 0, 0.45)",
+                    }}
+                >
+                    <IconButton
+                        aria-label="이전 파일"
+                        onClick={() => setFileIndex((index) => Math.max(index - 1, 0))}
+                        disabled={fileIndex <= 0}
+                        sx={{ color: "white", "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" } }}
+                    >
+                        <KeyboardArrowLeftIcon sx={{ fontSize: 28 }} />
+                    </IconButton>
+                    <Typography variant="body2" sx={{ color: "white", minWidth: 44, textAlign: "center", userSelect: "none" }}>
+                        {fileIndex + 1} / {fileList.length}
+                    </Typography>
+                    <IconButton
+                        aria-label="다음 파일"
+                        onClick={() => setFileIndex((index) => Math.min(index + 1, fileList.length - 1))}
+                        disabled={fileIndex >= fileList.length - 1}
+                        sx={{ color: "white", "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" } }}
+                    >
+                        <KeyboardArrowRightIcon sx={{ fontSize: 28 }} />
+                    </IconButton>
+                </Box>
             ) : null}
 
             <DialogContent

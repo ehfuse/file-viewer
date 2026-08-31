@@ -2636,45 +2636,6 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     <KeyboardArrowRightIcon sx={{ fontSize: 30 }} />
                 </IconButton>
             ) : null}
-            {/* 모바일 — 하단 가운데 탐색 바(◀ n/m ▶). 좌우 스와이프로도 넘어간다. */}
-            {isMobile && fileList.length > 1 ? (
-                <Box
-                    sx={{
-                        position: "fixed",
-                        bottom: 18,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        zIndex: 10,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        px: 1,
-                        py: 0.25,
-                        borderRadius: 999,
-                        backgroundColor: "rgba(0, 0, 0, 0.45)",
-                    }}
-                >
-                    <IconButton
-                        aria-label="이전 파일"
-                        onClick={() => setFileIndex((index) => Math.max(index - 1, 0))}
-                        disabled={fileIndex <= 0}
-                        sx={{ color: "white", "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" } }}
-                    >
-                        <KeyboardArrowLeftIcon sx={{ fontSize: 28 }} />
-                    </IconButton>
-                    <Typography variant="body2" sx={{ color: "white", minWidth: 44, textAlign: "center", userSelect: "none" }}>
-                        {fileIndex + 1} / {fileList.length}
-                    </Typography>
-                    <IconButton
-                        aria-label="다음 파일"
-                        onClick={() => setFileIndex((index) => Math.min(index + 1, fileList.length - 1))}
-                        disabled={fileIndex >= fileList.length - 1}
-                        sx={{ color: "white", "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" } }}
-                    >
-                        <KeyboardArrowRightIcon sx={{ fontSize: 28 }} />
-                    </IconButton>
-                </Box>
-            ) : null}
 
             <DialogContent
                 sx={{

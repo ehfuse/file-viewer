@@ -492,15 +492,15 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         }
     }, [open, file, detectedMime, numPages, pageNumber]);
 
-    // 로딩 상태 관리
+    // 로딩 상태 관리 — 표시를 잠깐(180ms) 늦춰, 다중 파일에서 이미지를 빠르게 넘길 때
+    // 전체 화면 로딩이 이전 이미지를 덮으며 번쩍이지 않게 한다(그 안에 로드가 끝나면 아예 안 보인다).
     useEffect(() => {
         if (loading) {
-            setShowLoading(true);
-        } else if (!loading && showLoading) {
-            // 로딩이 끝났지만 아직 showLoading이 true인 경우
-            // Loading 컴포넌트의 onComplete 콜백을 기다림
+            const timer = window.setTimeout(() => setShowLoading(true), 180);
+            return () => window.clearTimeout(timer);
         }
-    }, [loading, showLoading]);
+        // 로딩이 끝난 뒤의 showLoading 해제는 Loading 컴포넌트 onComplete 가 처리한다.
+    }, [loading]);
 
     // 파일 미리보기용 URL 생성
     const generateFileUrl = async () => {

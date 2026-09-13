@@ -17,6 +17,7 @@ export interface FileViewerProps {
     initialIndex?: number; // files 사용 시 처음 보여줄 파일 순번(기본 0)
     loadFile?: (file: ViewerFile) => Promise<Blob>; // 커스텀 blob 로더 (blob/url 이 없는 파일용 — 인증 다운로더 등)
     onDownload?: (file: ViewerFile) => void | Promise<void>; // 다운로드 동작 대체 (기본: 로드된 blob 을 앵커로 저장)
+    onShare?: (file: ViewerFile) => void | Promise<void>; // 공유 동작 대체 (기본: 기기 공유 창 — Web Share API 로 파일을 싣는다. 못 쓰는 환경이면 버튼을 숨긴다)
     pdfAssetBase?: string; // pdfjs 자산(worker/cmaps/폰트/wasm) 정적 경로 (기본 "/pdfjs" — setup-pdfjs 스크립트 참고)
 }
 

@@ -21,17 +21,13 @@ import {
     Button,
     Tabs,
     Tab,
-    Menu,
-    MenuItem,
     Snackbar,
-    ListItemIcon,
-    ListItemText,
     useMediaQuery,
     useTheme,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import MenuIcon from "@mui/icons-material/Menu";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import ShareIcon from "@mui/icons-material/Share";
 import DownloadIcon from "@mui/icons-material/Download";
 // 확대/축소는 돋보기 대신 +/- 글리프를 쓴다(모바일에서 의미가 더 즉각적).
 import AddIcon from "@mui/icons-material/Add";
@@ -129,6 +125,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     initialIndex = 0,
     loadFile,
     onDownload,
+    onShare,
     pdfAssetBase = DEFAULT_PDFJS_ASSET_BASE,
 }) => {
     // 모바일(lg 미만) — 좁은 화면에선 "화면에 맞추기" 버튼을 숨긴다(핀치/±로 대체).
@@ -169,8 +166,6 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     const [pageNumber, setPageNumber] = useState<number>(1);
     // 모바일: 페이지 썸네일 사이드바를 드로어로 여닫는다(헤더 메뉴 아이콘 토글).
     const [thumbnailDrawerOpen, setThumbnailDrawerOpen] = useState<boolean>(false);
-    // 모바일: 폭이 좁아 회전/다운로드를 MoreHoriz 오버플로 메뉴로 접는다.
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<HTMLElement | null>(null);
     const [pdfOrientation, setPdfOrientation] = useState<"portrait" | "landscape">("portrait");
     const [pageBaseRotation, setPageBaseRotation] = useState<number>(0); // PDF 페이지 자체에 기록된 회전값
     const [pageAspect, setPageAspect] = useState<number>(0); // 원본 페이지 가로/세로 비율
@@ -567,6 +562,36 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             saveBlobAsFile(blob, file.name);
         } catch (error) {
             console.error("파일 다운로드 오류:", error);
+        }
+    };
+
+    /**
+     * 공유(0.2.8) — onShare 가 있으면 그것, 없으면 기기 공유 창(Web Share API)에 파일을 싣는다.
+     * 파일 공유를 못 하는 환경(데스크톱 일부·안드로이드 WebView)에서는 버튼 자체를 숨긴다 — 눌러도 아무 일이 없는 버튼을 두지 않는다.
+     * 미리보기로 이미 받은 blob 을 쓴다 — 공유 창은 사용자 제스처 안에서 곧바로 열어야 해서 다시 받느라 기다리면 막힌다.
+     */
+    const canNativeShareFiles =
+        typeof navigator !== "undefined" && typeof navigator.share === "function" && typeof navigator.canShare === "function";
+    const canShare = Boolean(onShare) || canNativeShareFiles;
+    const handleShare = async () => {
+        if (!file) return;
+        try {
+            if (onShare) {
+                await onShare(file);
+                return;
+            }
+            const blob = loadedBlobRef.current ?? (await resolveFileBlob(file));
+            const type = blob.type || (typeof file.mimeType === "string" ? file.mimeType : "") || "application/octet-stream";
+            const shareFile = new File([blob], file.name, { type });
+            if (navigator.canShare({ files: [shareFile] })) {
+                await navigator.share({ files: [shareFile], title: file.name });
+            } else {
+                console.warn("이 기기는 이 파일 형식의 공유를 지원하지 않습니다.");
+            }
+        } catch (error) {
+            // 사용자가 공유 창을 그냥 닫은 것도 AbortError 로 온다 — 알릴 일이 아니다.
+            if ((error as { name?: string } | null)?.name === "AbortError") return;
+            console.error("파일 공유 오류:", error);
         }
     };
 
@@ -2370,8 +2395,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         flexDirection: "row",
                         alignItems: "center",
                         gap: isNarrow ? 0.35 : 1,
-                        // 모바일: 툴바 아이콘 글리프를 조금 키운다.
-                        "& .MuiSvgIcon-root": { fontSize: isMobile ? "1.7rem" : undefined },
+                        // 모바일도 버튼을 메뉴로 접지 않고 헤더에 늘어놓는다(0.2.8) — 좁은 폭에서는 글리프·여백을 줄여 한 줄에 들어가게 한다.
+                        "& .MuiSvgIcon-root": { fontSize: isNarrow ? "1.45rem" : isMobile ? "1.7rem" : undefined },
+                        "& .MuiIconButton-root": isNarrow ? { p: 0.75 } : {},
                     }}
                 >
                     {/* 페이지 네비게이션은 헤더 왼쪽(메뉴 옆)으로 이동, 세로 구분선 제거.
@@ -2422,7 +2448,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                     </Tooltip>
                                 </>
                             )}
-                            {!isMobile && (
+                            {(!isMobile || fileType === "image" || fileType === "pdf") && (
                                 <Tooltip title="화면에 맞추기">
                                     <IconButton
                                         onClick={handleFitScreen}
@@ -2441,8 +2467,8 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                     </IconButton>
                                 </Tooltip>
                             )}
-                            {/* 이미지와 PDF 파일일 때만 회전 버튼 표시(데스크탑). 모바일은 MoreHoriz 메뉴로 접는다. */}
-                            {!isMobile && (fileType === "image" || fileType === "pdf") && (
+                            {/* 이미지와 PDF 파일일 때만 회전 버튼 표시(모바일도 헤더에 둔다). */}
+                            {(fileType === "image" || fileType === "pdf") && (
                                 <>
                                     <Tooltip title="왼쪽으로 회전">
                                         <IconButton
@@ -2483,8 +2509,8 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         </>
                     )}
 
-                    {/* 다운로드: 데스크탑은 인라인, 모바일은 아래 MoreHoriz 메뉴로 접는다. */}
-                    {!isMobile && (
+                    {/* 다운로드 — 데스크톱·모바일 모두 헤더에. */}
+                    {(
                         <Tooltip title="다운로드">
                             <IconButton
                                 onClick={handleDownload}
@@ -2504,76 +2530,25 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         </Tooltip>
                     )}
 
-                    {/* 모바일: 폭이 좁아 회전/다운로드를 접는 MoreHoriz 오버플로 메뉴. */}
-                    {isMobile && (
-                        <>
-                            <Tooltip title="더보기">
-                                <IconButton
-                                    onClick={(e) => setMoreMenuAnchor(e.currentTarget)}
-                                    size="medium"
-                                    sx={{ color: "grey.300", "&:hover": { color: "white" } }}
-                                >
-                                    <MoreHorizIcon />
-                                </IconButton>
-                            </Tooltip>
-                            <Menu
-                                anchorEl={moreMenuAnchor}
-                                open={Boolean(moreMenuAnchor)}
-                                onClose={() => setMoreMenuAnchor(null)}
+                    {/* 공유 — 기기가 파일 공유를 지원하거나 앱이 onShare 를 줄 때만. */}
+                    {canShare && (
+                        <Tooltip title="공유">
+                            <IconButton
+                                onClick={() => void handleShare()}
+                                size="medium"
+                                sx={{
+                                    color: "grey.300",
+                                    "&:hover": {
+                                        color: "white",
+                                        backgroundColor: "rgba(255, 255, 255, 0.08)",
+                                        transform: "scale(1.1)",
+                                    },
+                                    transition: "all 0.2s ease-in-out",
+                                }}
                             >
-                                {/* 모바일은 +/- 버튼을 숨기고 핀치 줌만 쓰므로, 배율을 되돌릴 수단을 여기 남긴다. */}
-                                {fileType === "image" || fileType === "pdf" ? (
-                                    <MenuItem
-                                        onClick={() => {
-                                            handleFitScreen();
-                                            setMoreMenuAnchor(null);
-                                        }}
-                                    >
-                                        <ListItemIcon>
-                                            <FitScreenIcon fontSize="small" />
-                                        </ListItemIcon>
-                                        <ListItemText>화면에 맞추기</ListItemText>
-                                    </MenuItem>
-                                ) : null}
-                                {fileType === "image" || fileType === "pdf" ? (
-                                    <MenuItem
-                                        onClick={() => {
-                                            handleRotateLeft();
-                                            setMoreMenuAnchor(null);
-                                        }}
-                                    >
-                                        <ListItemIcon>
-                                            <RotateLeftIcon fontSize="small" />
-                                        </ListItemIcon>
-                                        <ListItemText>왼쪽으로 회전</ListItemText>
-                                    </MenuItem>
-                                ) : null}
-                                {fileType === "image" || fileType === "pdf" ? (
-                                    <MenuItem
-                                        onClick={() => {
-                                            handleRotateRight();
-                                            setMoreMenuAnchor(null);
-                                        }}
-                                    >
-                                        <ListItemIcon>
-                                            <RotateRightIcon fontSize="small" />
-                                        </ListItemIcon>
-                                        <ListItemText>오른쪽으로 회전</ListItemText>
-                                    </MenuItem>
-                                ) : null}
-                                <MenuItem
-                                    onClick={() => {
-                                        handleDownload();
-                                        setMoreMenuAnchor(null);
-                                    }}
-                                >
-                                    <ListItemIcon>
-                                        <DownloadIcon fontSize="small" />
-                                    </ListItemIcon>
-                                    <ListItemText>다운로드</ListItemText>
-                                </MenuItem>
-                            </Menu>
-                        </>
+                                <ShareIcon />
+                            </IconButton>
+                        </Tooltip>
                     )}
 
                     <Tooltip title="닫기">

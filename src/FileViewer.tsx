@@ -2394,7 +2394,8 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         display: "flex",
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: isNarrow ? 0.35 : 1,
+                        // 좁은 폭에서도 아이콘 사이를 띄운다(0.2.9) — 0.35 는 버튼끼리 붙어 잘못 누르기 쉬웠다.
+                        gap: isNarrow ? 1.25 : 1,
                         // 모바일도 버튼을 메뉴로 접지 않고 헤더에 늘어놓는다(0.2.8) — 좁은 폭에서는 글리프·여백을 줄여 한 줄에 들어가게 한다.
                         "& .MuiSvgIcon-root": { fontSize: isNarrow ? "1.45rem" : isMobile ? "1.7rem" : undefined },
                         "& .MuiIconButton-root": isNarrow ? { p: 0.75 } : {},

@@ -2228,8 +2228,10 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     // content-box 로 렌더되면 패딩만큼 60px 를 넘어 하단(시트 탭 등)이 잘린다.
                     boxSizing: "border-box",
                     userSelect: "none",
-                    // 모바일: 좌우 패딩을 줄여 메뉴 아이콘/닫기 버튼이 화면 끝에 붙게 한다.
-                    px: isMobile ? 1 : 3,
+                    // 모바일: 좌우 패딩을 줄여 메뉴 아이콘/닫기 버튼을 화면 끝 가까이 둔다.
+                    // 오른쪽은 16 — 8 은 닫기 버튼이 화면 끝에 붙어 보였다(0.2.10).
+                    pl: isMobile ? 1 : 3,
+                    pr: isMobile ? 2 : 3,
                 }}
                 onContextMenu={(e) => e.preventDefault()} // 우클릭 방지
             >
@@ -2399,6 +2401,14 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         // 모바일도 버튼을 메뉴로 접지 않고 헤더에 늘어놓는다(0.2.8) — 좁은 폭에서는 글리프·여백을 줄여 한 줄에 들어가게 한다.
                         "& .MuiSvgIcon-root": { fontSize: isNarrow ? "1.45rem" : isMobile ? "1.7rem" : undefined },
                         "& .MuiIconButton-root": isNarrow ? { p: 0.75 } : {},
+                        // 터치 기기는 탭한 뒤 hover 가 남아 버튼 뒤에 원(hover 배경)이 굳어 보였다(0.2.10).
+                        // 마우스가 없는 기기에서만 hover·포커스 배경과 확대를 끈다 — 데스크톱 마우스 호버는 그대로다.
+                        "@media (hover: none)": {
+                            "& .MuiIconButton-root:hover, & .MuiIconButton-root.Mui-focusVisible": {
+                                backgroundColor: "transparent",
+                                transform: "none",
+                            },
+                        },
                     }}
                 >
                     {/* 페이지 네비게이션은 헤더 왼쪽(메뉴 옆)으로 이동, 세로 구분선 제거.

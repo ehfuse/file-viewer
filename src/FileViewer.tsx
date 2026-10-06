@@ -22,6 +22,7 @@ import {
     Tabs,
     Tab,
     Snackbar,
+    TextField,
     useMediaQuery,
     useTheme,
 } from "@mui/material";
@@ -163,6 +164,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
 
     // PDF 관련 상태
     const [numPages, setNumPages] = useState<number>();
+    const [pdfPassword, setPdfPassword] = useState<string>(""); // 사용자가 넣은 PDF 암호
+    const [pdfPasswordAsk, setPdfPasswordAsk] = useState<"" | "need" | "wrong">(""); // 암호를 묻는 중인가(wrong = 틀려서 다시)
+    const [pdfPasswordInput, setPdfPasswordInput] = useState<string>("");
     const [pageNumber, setPageNumber] = useState<number>(1);
     // 모바일: 페이지 썸네일 사이드바를 드로어로 여닫는다(헤더 메뉴 아이콘 토글).
     const [thumbnailDrawerOpen, setThumbnailDrawerOpen] = useState<boolean>(false);
@@ -384,9 +388,23 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             cMapPacked: true,
             standardFontDataUrl: `${pdfAssetBase}/standard_fonts/`, // 폰트 미내장 PDF 용
             wasmUrl: `${pdfAssetBase}/wasm/`, // JPEG2000/JBIG2 이미지 디코더(pdfjs 5.x)
+            ...(pdfPassword && { password: pdfPassword }),
         }),
-        [pdfAssetBase]
+        [pdfAssetBase, pdfPassword]
     );
+
+    // 암호 걸린 PDF — react-pdf 기본 동작은 브라우저 prompt 인데, 취소하면 빈 암호로 다시 시도해 끝없이 되묻는다.
+    // 그래서 암호를 직접 받는다: 문서를 내리고 입력 칸을 보인 뒤, 받은 암호를 options 에 실어 다시 연다.
+    const handlePdfPassword = useCallback((_callback: (password: string | null) => void, reason: number) => {
+        setPdfPassword("");
+        setPdfPasswordAsk(reason === 2 ? "wrong" : "need"); // 2 = pdfjs PasswordResponses.INCORRECT_PASSWORD
+    }, []);
+    const submitPdfPassword = () => {
+        if (!pdfPasswordInput) return;
+        setPdfPassword(pdfPasswordInput);
+        setPdfPasswordInput("");
+        setPdfPasswordAsk("");
+    };
 
     // PDF.js worker 설정 — 설치된 pdfjs-dist 와 동일 버전의 로컬 worker 를 사용한다(setup-pdfjs 스크립트가 복사).
     useEffect(() => {
@@ -529,6 +547,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
 
         setLoading(true);
         setError("");
+        setPdfPassword("");
+        setPdfPasswordAsk("");
+        setPdfPasswordInput("");
         setDetectedMime(""); // MIME 폴백 초기화
         setTextContent(""); // 텍스트 내용 초기화
         setHtmlContent(""); // HTML 내용 초기화
@@ -1371,6 +1392,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         setRotation(0);
         setError("");
         // PDF 상태 초기화
+        setPdfPassword("");
+        setPdfPasswordAsk("");
+        setPdfPasswordInput("");
         setNumPages(undefined);
         setPageNumber(1);
         setPdfOrientation("portrait"); // PDF 방향성도 초기화
@@ -1429,9 +1453,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                 sx={{
                     width: sidebarWidth,
                     height: "100%",
-                    backgroundColor: "grey.200",
+                    backgroundColor: "grey.900",
                     borderRight: "1px solid",
-                    borderColor: "grey.300",
+                    borderColor: "grey.800",
                     overflow: "auto",
                     p: 2,
                 }}
@@ -1467,7 +1491,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                 if (isMobile) setThumbnailDrawerOpen(false);
                             }}
                         >
-                            <Document file={fileUrl} options={pdfOptions} loading={<div style={{ display: "none" }} />}>
+                            <Document file={fileUrl} options={pdfOptions} onPassword={handlePdfPassword} loading={<div style={{ display: "none" }} />}>
                                 <Page
                                     pageNumber={index + 1}
                                     scale={thumbnailScale}
@@ -1485,7 +1509,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                 textAlign: "center",
                                 p: 0.5,
                                 mb: 1,
-                                color: pageNumber === index + 1 ? "primary.main" : "",
+                                color: pageNumber === index + 1 ? "primary.light" : "grey.400",
                                 fontWeight: pageNumber === index + 1 ? "bold" : "normal",
                             }}
                         >
@@ -1554,7 +1578,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             // 넘치는 부분은 잘라내고 이동은 팬 제스처가 담당한다.
                             overflow: "hidden",
                             height: "100%",
-                            backgroundColor: "grey.100", // PDF와 동일한 배경색
+                            backgroundColor: "#000", // PDF와 동일한 배경색
                             p: 2, // 패딩 추가
                             // 브라우저 기본 제스처(스크롤·확대)를 끄고 팬/핀치를 우리가 처리한다.
                             touchAction: "none",
@@ -1591,7 +1615,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                 width: "100%",
                                 height: "calc(100vh - 60px)",
                                 display: "flex",
-                                backgroundColor: "grey.100",
+                                backgroundColor: "#000", // 문서·영상은 검은 바탕에서 본다(내용이 흰 종이라 경계가 또렷하다)
                                 // 핀치 확정 대기용 스냅샷(absolute·뷰포트 고정)의 기준 + 스냅샷이 영역 밖(헤더 등)을
                                 // 덮지 않게 잘라낸다.
                                 position: "relative",
@@ -1652,8 +1676,35 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                     },
                                 }}
                             >
+                                {pdfPasswordAsk ? (
+                                    <Box
+                                        component="form"
+                                        onSubmit={(event: React.FormEvent) => {
+                                            event.preventDefault();
+                                            submitPdfPassword();
+                                        }}
+                                        sx={{ display: "flex", flexDirection: "column", gap: 2, width: "min(360px, 100%)", m: "auto", p: 4, backgroundColor: "white", borderRadius: 2 }}
+                                    >
+                                        <Typography variant="h6" color={pdfPasswordAsk === "wrong" ? "error" : "text.primary"}>
+                                            {pdfPasswordAsk === "wrong" ? "암호가 맞지 않습니다" : "암호가 걸린 PDF 입니다"}
+                                        </Typography>
+                                        <TextField
+                                            type="password"
+                                            label="PDF 암호"
+                                            size="small"
+                                            autoFocus
+                                            autoComplete="off"
+                                            value={pdfPasswordInput}
+                                            onChange={(event) => setPdfPasswordInput(event.target.value)}
+                                        />
+                                        <Button type="submit" variant="contained" disabled={!pdfPasswordInput}>
+                                            열기
+                                        </Button>
+                                    </Box>
+                                ) : (
                                 <Document
                                     file={fileUrl}
+                                    onPassword={handlePdfPassword}
                                     onLoadSuccess={onDocumentLoadSuccess}
                                     onLoadError={(error) => {
                                         console.error("PDF 로드 오류:", error);
@@ -1665,7 +1716,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                             <Typography color="error" variant="h6" sx={{ mb: 2 }}>
                                                 PDF를 불러올 수 없습니다.
                                             </Typography>
-                                            <Typography color="text.secondary" variant="body2">
+                                            <Typography variant="body2" sx={{ color: "grey.400" }}>
                                                 파일을 다운로드하여 확인해주세요.
                                             </Typography>
                                         </Box>
@@ -1689,6 +1740,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                         onRenderError={handlePageRenderSuccess}
                                     />
                                 </Document>
+                                )}
                             </Box>
                         </Box>
                         {/* 모바일: 페이지 썸네일을 왼쪽 드로어로 표시(헤더 메뉴 아이콘 토글).
@@ -1994,6 +2046,8 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             justifyContent: "center",
                             alignItems: "center",
                             minHeight: 400,
+                            height: "100%",
+                            backgroundColor: "#000",
                             overflow: "auto",
                         }}
                     >
@@ -2175,10 +2229,12 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             justifyContent: "center",
                             alignItems: "center",
                             minHeight: 400,
+                            height: "100%",
+                            backgroundColor: "#000",
                             flexDirection: "column",
                         }}
                     >
-                        <Typography variant="h6" sx={{ mb: 2 }}>
+                        <Typography variant="h6" sx={{ mb: 2, color: "grey.300" }}>
                             {file.name}
                         </Typography>
                         <audio

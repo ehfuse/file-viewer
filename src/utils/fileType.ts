@@ -105,8 +105,10 @@ const FILE_VIEWER_RENDERABLE_TYPES = new Set<ViewerFileType>([
 ]);
 
 // 파일명이 FileViewer 인앱 미리보기(엑셀 시트 전환 포함) 대상인지 판별한다
-export const isFileViewerPreviewable = (fileName: string): boolean => {
-    return FILE_VIEWER_RENDERABLE_TYPES.has(getFileType(fileName));
+// includeOffice — 소비처가 convertOffice(문서 → PDF)를 넘기는 앱이면 true 로 불러 오피스·한글 문서도 대상에 넣는다
+export const isFileViewerPreviewable = (fileName: string, includeOffice = false): boolean => {
+    const type = getFileType(fileName);
+    return FILE_VIEWER_RENDERABLE_TYPES.has(type) || (includeOffice && type === "office");
 };
 
 // MIME 타입 → 대표 확장자. 확장자 필드가 없거나 원본명이 빠질 때 확장자 보완용

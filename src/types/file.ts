@@ -16,6 +16,7 @@ export interface FileViewerProps {
     files?: ViewerFile[] | null; // 여러 파일을 넘기면 헤더 ◀ n/m ▶ 로 이전/다음 탐색(file 은 무시되고 initialIndex 파일부터)
     initialIndex?: number; // files 사용 시 처음 보여줄 파일 순번(기본 0)
     loadFile?: (file: ViewerFile) => Promise<Blob>; // 커스텀 blob 로더 (blob/url 이 없는 파일용 — 인증 다운로더 등)
+    convertOffice?: (blob: Blob, file: ViewerFile) => Promise<Blob>; // 오피스·한글 문서(doc·docx·ppt·pptx·hwp·hwpx)를 PDF 로 바꿔 주는 함수 — 주면 그 문서도 미리보기한다
     onDownload?: (file: ViewerFile) => void | Promise<void>; // 다운로드 동작 대체 (기본: 로드된 blob 을 앵커로 저장)
     onShare?: (file: ViewerFile) => void | Promise<void>; // 공유 동작 대체 (기본: 기기 공유 창 — Web Share API 로 파일을 싣는다. 못 쓰는 환경이면 버튼을 숨긴다)
     pdfAssetBase?: string; // pdfjs 자산(worker/cmaps/폰트/wasm) 정적 경로 (기본 "/pdfjs" — setup-pdfjs 스크립트 참고)

@@ -55,12 +55,13 @@ interface FileViewerProps {
     loadFile?: (file: ViewerFile) => Promise<Blob>; // 커스텀 blob 로더 (인증 다운로더 등)
     onDownload?: (file: ViewerFile) => void | Promise<void>; // 다운로드 동작 대체
     pdfAssetBase?: string; // pdfjs 자산 경로 (기본 "/pdfjs")
+    convertOffice?: (blob: Blob, file: ViewerFile) => Promise<Blob>; // doc·docx·ppt·pptx·hwp·hwpx → PDF 변환기 (주면 그 문서도 PDF 로 미리보기)
 }
 
 // 헬퍼
 function getFileType(fileName: string): ViewerFileType;
 function resolveFileType(fileName: string, mime: string): ViewerFileType;
-function isFileViewerPreviewable(fileName: string): boolean;
+function isFileViewerPreviewable(fileName: string, includeOffice?: boolean): boolean;
 function ensureFileExtension(rawName: string, mimeType: string): string;
 function getEditorLanguage(fileName: string): string;
 function saveBlobAsFile(blob: Blob, filename: string): void;

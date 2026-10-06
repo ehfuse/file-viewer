@@ -52,7 +52,7 @@ import * as XLSX from "xlsx";
 import { LoadingProgress } from "@ehfuse/mui-fadeout-loading-progress";
 
 import type { ViewerFile, FileViewerProps } from "./types/file";
-import { resolveFileType, getEditorLanguage, getFileType } from "./utils/fileType";
+import { resolveFileType as resolveFileTypeByName, getEditorLanguage, getFileType } from "./utils/fileType";
 import { saveBlobAsFile } from "./utils/download";
 import { convertBlobToPng } from "./utils/image";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -117,6 +117,10 @@ const getPdfPageRotation = (page: any): number => {
     return 0;
 };
 
+// PDF 로 바꿔 받은 문서 표시 — 이름은 .docx 그대로라 확장자 판별로는 PDF 가 안 된다. detectedMime 에 이 값을 실어 구분한다.
+const CONVERTED_PDF_MIME = "application/pdf;converted";
+const resolveFileType = (fileName: string, mime: string) => (mime === CONVERTED_PDF_MIME ? "pdf" : resolveFileTypeByName(fileName, mime));
+
 // 풀스크린 파일 미리보기 다이얼로그 컴포넌트
 export const FileViewer: React.FC<FileViewerProps> = ({
     open,
@@ -128,6 +132,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     onDownload,
     onShare,
     pdfAssetBase = DEFAULT_PDFJS_ASSET_BASE,
+    convertOffice,
 }) => {
     // 모바일(lg 미만) — 좁은 화면에선 "화면에 맞추기" 버튼을 숨긴다(핀치/±로 대체).
     const isMobile = useIsMobile();
@@ -555,14 +560,23 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         setHtmlContent(""); // HTML 내용 초기화
         setSpreadsheetData([]); // 스프레드시트 데이터 초기화
 
+        let converting = false;
         try {
             // 모든 파일을 blob 으로 처리한다 (react-pdf 는 blob URL 지원).
             const blob = await resolveFileBlob(file);
-            loadedBlobRef.current = blob; // 다운로드 기본 동작에서 재사용
-            await applyBlobPreview(blob, file.name);
+            loadedBlobRef.current = blob; // 다운로드 기본 동작에서 재사용(변환본이 아니라 원본을 내려받는다)
+            if (convertOffice && getFileType(file.name) === "office") {
+                // 오피스·한글 문서는 브라우저가 못 그린다 — 소비처가 PDF 로 바꿔 주면 PDF 로 본다(0.2.12).
+                converting = true;
+                const pdf = await convertOffice(blob, file);
+                setFileUrl(URL.createObjectURL(pdf));
+                setDetectedMime(CONVERTED_PDF_MIME);
+            } else {
+                await applyBlobPreview(blob, file.name);
+            }
         } catch (error) {
             console.error("파일 로드 오류:", error);
-            setError("파일을 불러올 수 없습니다.");
+            setError(converting ? "미리보기를 만들지 못했습니다." : "파일을 불러올 수 없습니다.");
         } finally {
             setLoading(false);
         }

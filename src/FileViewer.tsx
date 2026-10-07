@@ -148,6 +148,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     }, [open, initialIndex, fileList]);
     // 아래 전체 로직이 보는 활성 파일 — 인덱스가 바뀌면 로드 체인이 새 파일로 다시 돈다.
     const file = fileList.length > 0 ? (fileList[fileIndex] ?? fileProp) : fileProp;
+    const lastDarkRef = useRef(false);
     const [loading, setLoading] = useState(true);
     const [showLoading, setShowLoading] = useState(false); // 로딩 표시 상태 관리
     const [fileUrl, setFileUrl] = useState<string>("");
@@ -2287,6 +2288,12 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         }
     };
 
+    // 검은 바탕에서 보는 종류(사진·PDF·영상·소리)는 내용 영역 자체를 처음부터 검게 둔다(0.2.14).
+    // 내용은 파일을 다 받은 뒤에야 그려지는데, 그 전에는 영역이 비어 창의 흰 바탕이 드러났다 — 열 때마다 흰 화면이 번쩍이고,
+    // 창이 흐려지며 뜨고 닫히는 동안 뒤 화면(썸네일 목록)이 그 위로 비쳐 보였다. 닫히는 동안에는 파일이 이미 비워져 있어 마지막 값을 쓴다.
+    if (file) lastDarkRef.current = ["image", "pdf", "video", "audio"].includes(resolveFileType(file.name || "", detectedMime));
+    const darkContent = lastDarkRef.current;
+
     return (
         <Dialog open={open} onClose={handleClose} maxWidth="lg" fullScreen>
             <DialogTitle
@@ -2701,6 +2708,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     p: "0 !important",
                     overflow: "hidden",
                     userSelect: "none",
+                    ...(darkContent ? { backgroundColor: "#000" } : {}),
                 }}
                 onContextMenu={(e) => e.preventDefault()}
             >

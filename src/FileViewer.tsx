@@ -11,6 +11,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
     Dialog,
+    Slide,
     DialogTitle,
     DialogContent,
     Drawer,
@@ -119,6 +120,11 @@ const getPdfPageRotation = (page: any): number => {
 
 // PDF 로 바꿔 받은 문서 표시 — 이름은 .docx 그대로라 확장자 판별로는 PDF 가 안 된다. detectedMime 에 이 값을 실어 구분한다.
 const CONVERTED_PDF_MIME = "application/pdf;converted";
+/** 오른쪽에서 왼쪽으로 밀려 들어오는 전환 — 폰의 전체 화면 뷰어가 쓴다. */
+const SlideLeft = React.forwardRef(function SlideLeft(props: any, ref: React.Ref<unknown>) {
+    return <Slide direction="left" ref={ref} {...props} />;
+});
+
 const resolveFileType = (fileName: string, mime: string) => (mime === CONVERTED_PDF_MIME ? "pdf" : resolveFileTypeByName(fileName, mime));
 
 // 풀스크린 파일 미리보기 다이얼로그 컴포넌트
@@ -2314,7 +2320,15 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     const darkContent = lastDarkRef.current;
 
     return (
-        <Dialog open={open} onClose={handleClose} maxWidth="lg" fullScreen>
+        <Dialog
+            open={open}
+            onClose={handleClose}
+            maxWidth="lg"
+            fullScreen
+            // 폰에서는 흐려지며 뜨지 않고 오른쪽에서 밀려 들어온다(0.2.17) — 다른 전체 화면 창과 같은 움직임이고,
+            // 반투명으로 겹치는 동안 뒤 화면과 섞여 깜박이는 일이 없다.
+            {...(isMobile ? { TransitionComponent: SlideLeft } : {})}
+        >
             <DialogTitle
                 sx={{
                     display: "flex",

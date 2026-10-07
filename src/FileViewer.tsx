@@ -155,6 +155,8 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     // 아래 전체 로직이 보는 활성 파일 — 인덱스가 바뀌면 로드 체인이 새 파일로 다시 돈다.
     const file = fileList.length > 0 ? (fileList[fileIndex] ?? fileProp) : fileProp;
     const lastDarkRef = useRef(false);
+    /** 뜨는 움직임이 끝나 화면을 다 덮었다 — 그때부터 뷰어 뒤를 검게 막는다(아래 Dialog 주석). */
+    const [covered, setCovered] = useState(false);
     const [loading, setLoading] = useState(true);
     const [showLoading, setShowLoading] = useState(false); // 로딩 표시 상태 관리
     const [fileUrl, setFileUrl] = useState<string>("");
@@ -2328,6 +2330,12 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             // 폰에서는 흐려지며 뜨지 않고 오른쪽에서 밀려 들어온다(0.2.17) — 다른 전체 화면 창과 같은 움직임이고,
             // 반투명으로 겹치는 동안 뒤 화면과 섞여 깜박이는 일이 없다.
             {...(isMobile ? { TransitionComponent: SlideLeft } : {})}
+            // 다 뜬 뒤에는 뷰어 뒤를 불투명한 검정으로 막는다(0.2.18). 화면 녹화로 확인한 현상: 폰에서 뷰어가 다 들어온 직후
+            // 왼쪽 위 한 조각(썸네일만 한 크기)이 0.2초쯤 늦게 그려지고, 그동안 그 자리에 **밑에 깔린 화면**(목록의 제목·첫 썸네일)이 비쳤다.
+            // 브라우저가 창을 조각 단위로 그리는데 마지막에 화면에 들어온 조각이 늦는 것이다. 뒤가 검으면 늦는 조각도 검게 보여 티가 나지 않는다.
+            // 뜨고 닫히는 동안에는 막지 않는다 — 밀려 들어오고 나가는 동안 뒤 화면이 보여야 자연스럽다.
+            TransitionProps={{ onEntered: () => setCovered(true), onExit: () => setCovered(false) }}
+            slotProps={{ backdrop: { sx: covered ? { backgroundColor: "#000", transition: "none !important" } : undefined } }}
         >
             <DialogTitle
                 sx={{

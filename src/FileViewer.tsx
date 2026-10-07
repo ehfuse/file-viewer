@@ -726,8 +726,18 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         const el = imageContentRef.current;
         if (!el) return;
         const { scale: viewScale, tx, ty, rotation: rot } = imageViewRef.current;
+        // 제자리(확대·이동·회전 없음)에서는 변환을 아예 걸지 않는다(0.2.16).
+        // 변환이 걸린 사진은 브라우저가 따로 떼어 낸 층에 조각조각 그리는데, 사진을 막 연 직후에는 아직 다 풀리지 않은 사진의
+        // 왼쪽 위 조각부터 그려졌다 지워지며 썸네일만 한 크기로 깜박였다(폰에서). 열자마자 "부드러운 전환" 을 거는 것도 같은 층을 만든다 —
+        // 이미 제자리면 전환도 걸지 않는다.
+        const identity = viewScale === 1 && tx === 0 && ty === 0 && rot % 360 === 0;
+        const resting = !el.style.transform || el.style.transform === "none";
+        if (identity && resting) {
+            el.style.transition = "none";
+            return;
+        }
         el.style.transition = smooth ? "transform 0.25s ease" : "none";
-        el.style.transform = `translate(${tx}px, ${ty}px) scale(${viewScale}) rotate(${rot}deg)`;
+        el.style.transform = identity ? "none" : `translate(${tx}px, ${ty}px) scale(${viewScale}) rotate(${rot}deg)`;
     }, []);
 
     /** 이동값을 클램프한 뒤 다음 프레임에 1회 반영한다.(연속 pointermove 스로틀) */
@@ -1617,13 +1627,15 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             src={fileUrl}
                             alt={file.name}
                             draggable={false}
+                            // 다 풀린 뒤에 한 번에 그린다 — 큰 사진이 풀리는 대로 조각조각 나타나지 않게(0.2.16).
+                            decoding="sync"
                             style={{
                                 maxWidth: "100%",
                                 maxHeight: "100%",
                                 objectFit: "contain",
                                 display: "block",
                                 // 변환값은 applyImageView 가 DOM style 로 직접 기록한다(리렌더 없이 손가락을 따라오게).
-                                transform: "translate(0px, 0px) scale(1) rotate(0deg)",
+                                // 처음에는 걸지 않는다 — 걸려 있으면 제자리여도 따로 떼어 낸 층에 그려진다(applyImageView 주석).
                                 transformOrigin: "center center",
                                 pointerEvents: "none", // 드래그 중 이미지 선택 방지
                             }}

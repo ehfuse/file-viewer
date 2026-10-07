@@ -2341,7 +2341,14 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             // 브라우저가 창을 조각 단위로 그리는데 마지막에 화면에 들어온 조각이 늦는 것이다. 뒤가 검으면 늦는 조각도 검게 보여 티가 나지 않는다.
             // 뜨고 닫히는 동안에는 막지 않는다 — 밀려 들어오고 나가는 동안 뒤 화면이 보여야 자연스럽다.
             TransitionProps={{ onEntered: () => setCovered(true), onExit: () => setCovered(false) }}
-            slotProps={{ backdrop: { sx: covered ? { backgroundColor: "#000", transition: "none !important" } : undefined } }}
+            // 폰에서는 뒤 막을 처음부터 검정으로 둔다(0.2.20) — 밀려 들어오는 동안 뒤 화면이 검게 가라앉고, 다 들어왔을 때는 이미 불투명하다.
+            // "다 뜬 뒤에 검게" 는 한 박자 늦었다: 녹화에서 늦게 그려지는 조각 자리에 반쯤 어두운 뒤 화면이 0.3초 비쳤다.
+            slotProps={{
+                backdrop: { sx: isMobile ? { backgroundColor: "#000" } : covered ? { backgroundColor: "#000", transition: "none !important" } : undefined },
+            }}
+            // 밀려 들어온 뒤에도 창을 같은 층에 그대로 둔다(0.2.20). 움직임이 끝나면 브라우저가 창을 다른 층으로 옮겨 처음부터 다시 그리는데,
+            // 그때 왼쪽 위 조각이 한 박자 늦어 뒤가 비쳤다(화면 녹화로 확인 — 다 들어온 직후 0.3초). 층을 유지하면 들어오며 그려 둔 것을 그대로 쓴다.
+            sx={isMobile ? { "& .MuiDialog-container": { willChange: "transform" } } : undefined}
         >
             <DialogTitle
                 sx={{

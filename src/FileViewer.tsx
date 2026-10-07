@@ -1549,6 +1549,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         width: "100%",
                         alignItems: "center",
                         justifyContent: "center",
+                        // 검은 바탕에서 보는 종류(사진·PDF·영상·소리)는 받는 동안에도 검게 둔다(0.2.13) —
+                        // 흰 로딩 화면이 잠깐 떴다가 검은 화면으로 바뀌면 사진을 열 때마다 번쩍인다.
+                        ...(["image", "pdf", "video", "audio"].includes(fileType) ? { backgroundColor: "#000" } : {}),
                     }}
                 >
                     <LoadingProgress visible={loading} exitDelay={100} onComplete={handleLoadingComplete} />

@@ -1559,7 +1559,13 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         const fileType = resolveFileType(file?.name || "", detectedMime);
         const isSpreadsheet = fileType === "spreadsheet";
 
-        if (showLoading && !isSpreadsheet) {
+        // 사진은 로딩 화면을 거치지 않는다(0.2.19). 화면 녹화로 확인한 현상: 사진을 받는 데 0.2초가 넘어 로딩 표시가 떴을 때만,
+        // 그 표시가 흐려지며 사라지고 사진으로 바뀌는 순간 화면 왼쪽 위 한 조각이 몇 번 깜박였다(밑 화면이 비치거나 검게 비었다).
+        // 흐려지는 움직임과 내용 갈아 끼우기가 겹치면 폰 브라우저가 그 조각을 다시 그리다 놓친다. 사진은 받는 동안 검은 화면으로 두었다가 그대로 띄운다.
+        const isImage = fileType === "image";
+        if (isImage && !fileUrl && !error) return <Box sx={{ height: "100%", minHeight: 400, backgroundColor: "#000" }} />;
+
+        if (showLoading && !isSpreadsheet && !isImage) {
             return (
                 <Box
                     sx={{

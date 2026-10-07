@@ -1555,7 +1555,14 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         ...(["image", "pdf", "video", "audio"].includes(fileType) ? { backgroundColor: "#000" } : {}),
                     }}
                 >
-                    <LoadingProgress visible={loading} exitDelay={100} onComplete={handleLoadingComplete} />
+                    {/* 로딩 표시는 화면 전체를 밝은 막으로 덮는다 — 검은 바탕에서 보는 종류에서는 막을 끄고 돌아가는 표시만 둔다(0.2.15).
+                        막이 있으면 사진을 열 때마다 화면이 하얗게 번쩍였다가 검어진다. */}
+                    <LoadingProgress
+                        visible={loading}
+                        exitDelay={100}
+                        onComplete={handleLoadingComplete}
+                        {...(["image", "pdf", "video", "audio"].includes(fileType) ? { background: { show: false } } : {})}
+                    />
                 </Box>
             );
         }

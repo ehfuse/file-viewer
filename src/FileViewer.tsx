@@ -2368,7 +2368,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         "& .MuiSvgIcon-root": { fontSize: isMobile ? "1.7rem" : undefined },
                     }}
                 >
-                    {/* 폰에서는 왼쪽 끝에 뒤로가기를 둔다(0.2.22) — 오른쪽에서 밀려 들어오는 전체 화면 창은 왼쪽 위 ← 로 돌아가는 것이 손에 익은 자리다. ✕ 도 그대로 둔다. */}
+                    {/* 폰에서는 왼쪽 끝에 뒤로가기를 둔다(0.2.22) — 오른쪽에서 밀려 들어오는 전체 화면 창은 왼쪽 위 ← 로 돌아가는 것이 손에 익은 자리다. 오른쪽 ✕ 는 폰에서 뺀다(0.2.23). */}
                     {isMobile ? (
                         <IconButton
                             onClick={handleClose}
@@ -2696,23 +2696,26 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         </Tooltip>
                     )}
 
-                    <Tooltip title="닫기">
-                        <IconButton
-                            onClick={handleClose}
-                            size="medium"
-                            sx={{
-                                color: "grey.300",
-                                "&:hover": {
-                                    color: "white",
-                                    backgroundColor: "rgba(255, 255, 255, 0.08)",
-                                    transform: "scale(1.1)",
-                                },
-                                transition: "all 0.2s ease-in-out",
-                            }}
-                        >
-                            <CloseIcon />
-                        </IconButton>
-                    </Tooltip>
+                    {/* 폰에서는 왼쪽의 ← 가 닫기다(0.2.23) — 같은 일을 하는 단추를 양 끝에 둘 까닭이 없다. */}
+                    {isMobile ? null : (
+                        <Tooltip title="닫기">
+                            <IconButton
+                                onClick={handleClose}
+                                size="medium"
+                                sx={{
+                                    color: "grey.300",
+                                    "&:hover": {
+                                        color: "white",
+                                        backgroundColor: "rgba(255, 255, 255, 0.08)",
+                                        transform: "scale(1.1)",
+                                    },
+                                    transition: "all 0.2s ease-in-out",
+                                }}
+                            >
+                                <CloseIcon />
+                            </IconButton>
+                        </Tooltip>
+                    )}
                 </Box>
             </DialogTitle>
             {/* 다중 파일 — 본문 좌우 오버레이 화살표(데스크톱). 모바일은 내용을 가리지 않게 하단 바로 대신한다. */}

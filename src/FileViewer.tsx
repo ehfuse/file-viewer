@@ -28,6 +28,7 @@ import {
     useTheme,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MenuIcon from "@mui/icons-material/Menu";
 import ShareIcon from "@mui/icons-material/Share";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -2367,6 +2368,17 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         "& .MuiSvgIcon-root": { fontSize: isMobile ? "1.7rem" : undefined },
                     }}
                 >
+                    {/* 폰에서는 왼쪽 끝에 뒤로가기를 둔다(0.2.22) — 오른쪽에서 밀려 들어오는 전체 화면 창은 왼쪽 위 ← 로 돌아가는 것이 손에 익은 자리다. ✕ 도 그대로 둔다. */}
+                    {isMobile ? (
+                        <IconButton
+                            onClick={handleClose}
+                            aria-label="뒤로"
+                            size="medium"
+                            sx={{ color: "grey.300", "&:hover": { color: "white", backgroundColor: "rgba(255, 255, 255, 0.08)" } }}
+                        >
+                            <ArrowBackIcon />
+                        </IconButton>
+                    ) : null}
                     {/* 다중 파일 탐색 — ◀ n/m ▶ (여러 파일을 넘겨받았을 때만) */}
                     {fileList.length > 1 ? (
                         <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 0 : 0.5 }}>

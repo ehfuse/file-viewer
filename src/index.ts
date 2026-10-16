@@ -11,3 +11,5 @@ export {
 export { saveBlobAsFile } from "./utils/download";
 export { ImageIcon, PdfIcon, HtmlIcon, ZipIcon, FileTypeIcon, getFileTypeIcon, type FileTypeIconProps } from "./icons";
 export { VIEWER_MESSAGES, resolveViewerLabels, type ViewerLabels, type ViewerLocale } from "./i18n/messages";
+export { resolveToolbar } from "./types/toolbar";
+export type { ViewerToolbar, ViewerToolbarItem, ViewerVariant } from "./types/toolbar";

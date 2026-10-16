@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { resolveViewerLabels } from "./i18n/messages";
+import { resolveToolbar } from "./types/toolbar";
 import {
     Dialog,
     Slide,
@@ -144,7 +145,11 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     locale,
     labels,
     pageNavPosition = "toolbar",
+    variant = "full",
+    toolbar,
 }) => {
+    // 머리줄에 무엇을 보일지 — 기본(full)은 예전 그대로 전부다.
+    const show = useMemo(() => resolveToolbar(variant, toolbar), [variant, toolbar]);
     // 화면 문구 — 언어를 안 주면 예전처럼 한국어다.
     const t = useMemo(() => resolveViewerLabels(locale, labels), [locale, labels]);
     // 모바일(lg 미만) — 좁은 화면에선 "화면에 맞추기" 버튼을 숨긴다(핀치/±로 대체).
@@ -2400,7 +2405,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         </Box>
     );
     /** 본문 높이 — 머리줄(60) + 아래 줄(있으면 44) 을 뺀다 */
-    const bodyHeight = pageNavBelow && fileType === "pdf" && numPages ? "calc(100vh - 104px)" : "calc(100vh - 60px)";
+    const bodyHeight = show.pageNav && pageNavBelow && fileType === "pdf" && numPages ? "calc(100vh - 104px)" : "calc(100vh - 60px)";
 
     return (
         <Dialog
@@ -2445,7 +2450,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     }}
                 >
                     {/* 폰에서는 왼쪽 끝에 뒤로가기를 둔다(0.2.22) — 오른쪽에서 밀려 들어오는 전체 화면 창은 왼쪽 위 ← 로 돌아가는 것이 손에 익은 자리다. 오른쪽 ✕ 는 폰에서 뺀다(0.2.23). */}
-                    {isMobile ? (
+                    {isMobile && show.close ? (
                         <IconButton
                             onClick={handleClose}
                             aria-label={t.back}
@@ -2456,7 +2461,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         </IconButton>
                     ) : null}
                     {/* 다중 파일 탐색 — ◀ n/m ▶ (여러 파일을 넘겨받았을 때만) */}
-                    {fileList.length > 1 ? (
+                    {show.fileNav && fileList.length > 1 ? (
                         <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 0 : 0.5 }}>
                             <Tooltip title={t.prevFile}>
                                 <span style={{ display: "inline-flex" }}>
@@ -2495,7 +2500,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             </Tooltip>
                         </Box>
                     ) : null}
-                    {isMobile && fileType === "pdf" && numPages ? (
+                    {show.pageList && isMobile && fileType === "pdf" && numPages ? (
                         <Tooltip title={t.pageList}>
                             <IconButton
                                 onClick={() => setThumbnailDrawerOpen((prev) => !prev)}
@@ -2506,7 +2511,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             </IconButton>
                         </Tooltip>
                     ) : null}
-                    {fileType === "pdf" && numPages && !pageNavBelow ? pageNav : null}
+                    {show.pageNav && fileType === "pdf" && numPages && !pageNavBelow ? pageNav : null}
                 </Box>
                 {/* 파일 아이콘 + 이름 — sm 이하에서는 숨긴다(공간 확보). flexGrow 스페이서는 유지해 툴바를 오른쪽에 붙인다. */}
                 <Box
@@ -2518,7 +2523,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         overflow: "hidden",
                     }}
                 >
-                    {!isNarrow && (
+                    {!isNarrow && show.fileName && (
                         <Box
                             sx={{
                                 display: "flex",
@@ -2567,7 +2572,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         fileType === "code" ||
                         fileType === "spreadsheet") && (
                         <>
-                            {!(isMobile && (fileType === "image" || fileType === "pdf")) && (
+                            {show.zoom && !(isMobile && (fileType === "image" || fileType === "pdf")) && (
                                 <>
                                     <Tooltip title={t.zoomIn}>
                                         <IconButton
@@ -2605,7 +2610,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                     </Tooltip>
                                 </>
                             )}
-                            {(!isMobile || fileType === "image" || fileType === "pdf") && (
+                            {show.fit && (!isMobile || fileType === "image" || fileType === "pdf") && (
                                 <Tooltip title={t.fitToScreen}>
                                     <IconButton
                                         onClick={handleFitScreen}
@@ -2625,7 +2630,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                 </Tooltip>
                             )}
                             {/* 이미지와 PDF 파일일 때만 회전 버튼 표시(모바일도 헤더에 둔다). */}
-                            {(fileType === "image" || fileType === "pdf") && (
+                            {show.rotate && (fileType === "image" || fileType === "pdf") && (
                                 <>
                                     <Tooltip title={t.rotateLeft}>
                                         <IconButton
@@ -2669,7 +2674,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     )}
 
                     {/* 다운로드 — 데스크톱·모바일 모두 헤더에. */}
-                    {(
+                    {show.download && (
                         <Tooltip title={t.download}>
                             <IconButton
                                 onClick={handleDownload}
@@ -2690,7 +2695,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     )}
 
                     {/* 공유 — 기기가 파일 공유를 지원하거나 앱이 onShare 를 줄 때만. */}
-                    {canShare && (
+                    {show.share && canShare && (
                         <Tooltip title={t.share}>
                             <IconButton
                                 onClick={() => void handleShare()}
@@ -2711,7 +2716,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     )}
 
                     {/* 폰에서는 왼쪽의 ← 가 닫기다(0.2.23) — 같은 일을 하는 단추를 양 끝에 둘 까닭이 없다. */}
-                    {isMobile ? null : (
+                    {isMobile || !show.close ? null : (
                         <Tooltip title={t.close}>
                             <IconButton
                                 onClick={handleClose}
@@ -2733,7 +2738,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                 </Box>
             </DialogTitle>
             {/* PDF 페이지 이동을 머리줄 아래 한 줄로 내린 경우(pageNavPosition="below") — 머리줄이 다른 단추로 찬 좁은 화면용 */}
-            {pageNavBelow && fileType === "pdf" && numPages ? (
+            {show.pageNav && pageNavBelow && fileType === "pdf" && numPages ? (
                 <Box
                     sx={{
                         height: "44px",
@@ -2752,7 +2757,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                 </Box>
             ) : null}
             {/* 다중 파일 — 본문 좌우 오버레이 화살표(데스크톱). 모바일은 내용을 가리지 않게 하단 바로 대신한다. */}
-            {!isMobile && fileList.length > 1 && fileIndex > 0 ? (
+            {show.fileNav && !isMobile && fileList.length > 1 && fileIndex > 0 ? (
                 <IconButton
                     aria-label={t.prevFile}
                     onClick={() => setFileIndex((index) => Math.max(index - 1, 0))}
@@ -2772,7 +2777,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     <KeyboardArrowLeftIcon sx={{ fontSize: 30 }} />
                 </IconButton>
             ) : null}
-            {!isMobile && fileList.length > 1 && fileIndex < fileList.length - 1 ? (
+            {show.fileNav && !isMobile && fileList.length > 1 && fileIndex < fileList.length - 1 ? (
                 <IconButton
                     aria-label={t.nextFile}
                     onClick={() => setFileIndex((index) => Math.min(index + 1, fileList.length - 1))}

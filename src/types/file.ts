@@ -1,3 +1,4 @@
+import type { ViewerToolbar, ViewerVariant } from "./toolbar";
 import type { ViewerLabels } from "../i18n/messages";
 // 뷰어가 표시할 파일 정보 (name 필수, 데이터 소스는 blob/url/loadFile 중 하나)
 export interface ViewerFile {
@@ -24,6 +25,8 @@ export interface FileViewerProps {
     locale?: string; // 화면 문구 언어 — ko·en·ja·mn·kk (기본 ko, "en-US" 처럼 지역이 붙어도 된다, 모르는 언어는 영어)
     labels?: Partial<ViewerLabels>; // 문구를 직접 바꿀 때 — 언어 기본 문구 위에 덮어쓴다
     pageNavPosition?: "toolbar" | "below"; // PDF 페이지 이동(‹ n ›) 자리 — 기본 머리줄, "below" 면 머리줄 아래 한 줄
+    variant?: ViewerVariant; // 구성 — "full"(기본, 지금의 모든 단추) · "simple"(넘기기·다운로드·닫기만)
+    toolbar?: ViewerToolbar; // 단추를 하나씩 켜고 끈다(구성보다 앞선다) — 예: { rotate: false, share: false }
 }
 
 // 뷰어가 판별하는 파일 타입

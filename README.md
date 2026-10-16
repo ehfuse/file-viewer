@@ -58,6 +58,8 @@ interface FileViewerProps {
     locale?: string; // 화면 문구 언어 — ko·en·ja·mn·kk (기본 ko, 모르는 언어는 영어)
     labels?: Partial<ViewerLabels>; // 문구를 직접 바꿀 때 (언어 기본 문구 위에 덮어쓴다)
     pageNavPosition?: "toolbar" | "below"; // PDF 페이지 이동(‹ n ›) 자리 — 기본 머리줄, "below" 면 머리줄 아래 한 줄
+    variant?: "full" | "simple"; // 구성 — full(기본, 모든 단추) · simple(넘기기·다운로드·닫기만)
+    toolbar?: ViewerToolbar; // 단추를 하나씩 켜고 끈다(구성보다 앞선다)
     convertOffice?: (blob: Blob, file: ViewerFile) => Promise<Blob>; // doc·docx·ppt·pptx·hwp·hwpx → PDF 변환기 (주면 그 문서도 PDF 로 미리보기)
 }
 
@@ -83,6 +85,31 @@ function saveBlobAsFile(blob: Blob, filename: string): void;
 ## PDF 페이지 이동 자리
 
 기본은 머리줄 안이다. 좁은 화면에서 머리줄이 단추로 차면 `pageNavPosition="below"` 로 머리줄 아래 한 줄(44px)로 내린다 — 그 줄에서는 "1 / 4" 처럼 전체 쪽수까지 보인다.
+
+## 머리줄 단추 켜고 끄기
+
+`variant` 로 구성을 고르고, `toolbar` 로 단추를 하나씩 켜고 끈다. 아무것도 주지 않으면 예전과 같다(`full`).
+
+| 이름 | 단추 | full | simple |
+| --- | --- | --- | --- |
+| `fileNav` | 여러 파일 ◀ n/m ▶ (데스크톱 좌우 화살표 포함) | ✓ | ✓ |
+| `pageList` | PDF 페이지 목록(폰·태블릿 ☰) | ✓ | |
+| `pageNav` | PDF 페이지 이동 ‹ n › | ✓ | ✓ |
+| `fileName` | 파일 아이콘 + 이름(넓은 화면) | ✓ | ✓ |
+| `zoom` | 확대·축소 | ✓ | |
+| `fit` | 화면에 맞추기 | ✓ | |
+| `rotate` | 회전 | ✓ | |
+| `download` | 다운로드 | ✓ | ✓ |
+| `share` | 공유 | ✓ | |
+| `close` | 닫기(폰은 왼쪽 ←) — 끄면 Esc·뒤로가기로만 닫힌다 | ✓ | ✓ |
+
+```tsx
+<FileViewer open file={file} onClose={close} variant="simple" />
+<FileViewer open file={file} onClose={close} toolbar={{ rotate: false, share: false }} />
+<FileViewer open file={file} onClose={close} variant="simple" toolbar={{ zoom: true }} />
+```
+
+조건이 맞지 않는 단추는 켜도 나오지 않는다(예: 회전은 이미지·PDF 에서만, 공유는 기기가 지원할 때만).
 
 ## 예제
 

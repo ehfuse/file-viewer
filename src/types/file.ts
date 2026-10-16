@@ -23,6 +23,7 @@ export interface FileViewerProps {
     pdfAssetBase?: string; // pdfjs 자산(worker/cmaps/폰트/wasm) 정적 경로 (기본 "/pdfjs" — setup-pdfjs 스크립트 참고)
     locale?: string; // 화면 문구 언어 — ko·en·ja·mn·kk (기본 ko, "en-US" 처럼 지역이 붙어도 된다, 모르는 언어는 영어)
     labels?: Partial<ViewerLabels>; // 문구를 직접 바꿀 때 — 언어 기본 문구 위에 덮어쓴다
+    pageNavPosition?: "toolbar" | "below"; // PDF 페이지 이동(‹ n ›) 자리 — 기본 머리줄, "below" 면 머리줄 아래 한 줄
 }
 
 // 뷰어가 판별하는 파일 타입

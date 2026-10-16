@@ -57,6 +57,7 @@ interface FileViewerProps {
     pdfAssetBase?: string; // pdfjs 자산 경로 (기본 "/pdfjs")
     locale?: string; // 화면 문구 언어 — ko·en·ja·mn·kk (기본 ko, 모르는 언어는 영어)
     labels?: Partial<ViewerLabels>; // 문구를 직접 바꿀 때 (언어 기본 문구 위에 덮어쓴다)
+    pageNavPosition?: "toolbar" | "below"; // PDF 페이지 이동(‹ n ›) 자리 — 기본 머리줄, "below" 면 머리줄 아래 한 줄
     convertOffice?: (blob: Blob, file: ViewerFile) => Promise<Blob>; // doc·docx·ppt·pptx·hwp·hwpx → PDF 변환기 (주면 그 문서도 PDF 로 미리보기)
 }
 
@@ -78,6 +79,10 @@ function saveBlobAsFile(blob: Blob, filename: string): void;
 ```
 
 회전 단추에는 언어와 상관없는 `data-viewer-action="rotate-left" | "rotate-right"` 가 붙어 있어 CSS 로 고를 수 있다.
+
+## PDF 페이지 이동 자리
+
+기본은 머리줄 안이다. 좁은 화면에서 머리줄이 단추로 차면 `pageNavPosition="below"` 로 머리줄 아래 한 줄(44px)로 내린다 — 그 줄에서는 "1 / 4" 처럼 전체 쪽수까지 보인다.
 
 ## 예제
 

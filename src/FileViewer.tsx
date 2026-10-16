@@ -143,6 +143,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     convertOffice,
     locale,
     labels,
+    pageNavPosition = "toolbar",
 }) => {
     // 화면 문구 — 언어를 안 주면 예전처럼 한국어다.
     const t = useMemo(() => resolveViewerLabels(locale, labels), [locale, labels]);
@@ -1668,7 +1669,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             ref={pdfOuterRef}
                             sx={{
                                 width: "100%",
-                                height: "calc(100vh - 60px)",
+                                height: bodyHeight,
                                 display: "flex",
                                 backgroundColor: "#000", // 문서·영상은 검은 바탕에서 본다(내용이 흰 종이라 경계가 또렷하다)
                                 // 핀치 확정 대기용 스냅샷(absolute·뷰포트 고정)의 기준 + 스냅샷이 영역 밖(헤더 등)을
@@ -2331,6 +2332,76 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     if (file) lastDarkRef.current = ["image", "pdf", "video", "audio"].includes(resolveFileType(file.name || "", detectedMime));
     const darkContent = lastDarkRef.current;
 
+    // PDF 페이지 이동 ‹ n › — 기본은 머리줄, pageNavPosition="below" 면 머리줄 아래 줄로 내린다(0.2.25).
+    const pageNavBelow = pageNavPosition === "below";
+    const pageNav = (
+        <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 0 : 0.5 }}>
+                            {/* disabled 버튼은 이벤트가 없어 Tooltip 이 직접 못 붙는다 — span 으로 감싼다. */}
+                            <Tooltip title={t.prevPage}>
+                                <span style={{ display: "inline-flex" }}>
+                                    <IconButton
+                                        onClick={goToPrevPage}
+                                        disabled={pageNumber <= 1}
+                                        size="medium"
+                                        sx={{
+                                            color: "grey.300",
+                                            "&:hover": {
+                                                color: "white",
+                                                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                                                transform: "scale(1.1)",
+                                            },
+                                            // MUI 기본 disabled 색은 검정 계열이라 어두운 헤더에서 안 보여
+                                            // 버튼이 사라진 것처럼 보인다 — 흐린 흰색으로 항상 보이게 한다.
+                                            // (hover 뒤에 둬서 터치 탭 후 남는 hover 잔상보다 우선)
+                                            "&.Mui-disabled": { color: "rgba(255, 255, 255, 0.3)" },
+                                            transition: "all 0.2s ease-in-out",
+                                        }}
+                                    >
+                                        <KeyboardArrowLeftIcon />
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    minWidth: isMobile ? "auto" : "80px",
+                                    textAlign: "center",
+                                    color: "white",
+                                    px: isMobile ? 0.5 : 1,
+                                    fontSize: isMobile ? "1.05rem" : undefined,
+                                    fontWeight: isMobile ? 600 : undefined,
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                {isNarrow && !pageNavBelow ? pageNumber : `${pageNumber} / ${numPages}`}
+                            </Typography>
+                            <Tooltip title={t.nextPage}>
+                                <span style={{ display: "inline-flex" }}>
+                                    <IconButton
+                                        onClick={goToNextPage}
+                                        disabled={pageNumber >= (numPages ?? 0)}
+                                        size="medium"
+                                        sx={{
+                                            color: "grey.300",
+                                            "&:hover": {
+                                                color: "white",
+                                                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                                                transform: "scale(1.1)",
+                                            },
+                                            // 위 이전 페이지 버튼과 동일 — 어두운 배경에서도 흐리게 보이는 비활성색
+                                            "&.Mui-disabled": { color: "rgba(255, 255, 255, 0.3)" },
+                                            transition: "all 0.2s ease-in-out",
+                                        }}
+                                    >
+                                        <KeyboardArrowRightIcon />
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                        </Box>
+    );
+    /** 본문 높이 — 머리줄(60) + 아래 줄(있으면 44) 을 뺀다 */
+    const bodyHeight = pageNavBelow && fileType === "pdf" && numPages ? "calc(100vh - 104px)" : "calc(100vh - 60px)";
+
     return (
         <Dialog
             open={open}
@@ -2435,71 +2506,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             </IconButton>
                         </Tooltip>
                     ) : null}
-                    {fileType === "pdf" && numPages ? (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 0 : 0.5 }}>
-                            {/* disabled 버튼은 이벤트가 없어 Tooltip 이 직접 못 붙는다 — span 으로 감싼다. */}
-                            <Tooltip title={t.prevPage}>
-                                <span style={{ display: "inline-flex" }}>
-                                    <IconButton
-                                        onClick={goToPrevPage}
-                                        disabled={pageNumber <= 1}
-                                        size="medium"
-                                        sx={{
-                                            color: "grey.300",
-                                            "&:hover": {
-                                                color: "white",
-                                                backgroundColor: "rgba(255, 255, 255, 0.08)",
-                                                transform: "scale(1.1)",
-                                            },
-                                            // MUI 기본 disabled 색은 검정 계열이라 어두운 헤더에서 안 보여
-                                            // 버튼이 사라진 것처럼 보인다 — 흐린 흰색으로 항상 보이게 한다.
-                                            // (hover 뒤에 둬서 터치 탭 후 남는 hover 잔상보다 우선)
-                                            "&.Mui-disabled": { color: "rgba(255, 255, 255, 0.3)" },
-                                            transition: "all 0.2s ease-in-out",
-                                        }}
-                                    >
-                                        <KeyboardArrowLeftIcon />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-                            <Typography
-                                variant="body2"
-                                sx={{
-                                    minWidth: isMobile ? "auto" : "80px",
-                                    textAlign: "center",
-                                    color: "white",
-                                    px: isMobile ? 0.5 : 1,
-                                    fontSize: isMobile ? "1.05rem" : undefined,
-                                    fontWeight: isMobile ? 600 : undefined,
-                                    whiteSpace: "nowrap",
-                                }}
-                            >
-                                {isNarrow ? pageNumber : `${pageNumber} / ${numPages}`}
-                            </Typography>
-                            <Tooltip title={t.nextPage}>
-                                <span style={{ display: "inline-flex" }}>
-                                    <IconButton
-                                        onClick={goToNextPage}
-                                        disabled={pageNumber >= numPages}
-                                        size="medium"
-                                        sx={{
-                                            color: "grey.300",
-                                            "&:hover": {
-                                                color: "white",
-                                                backgroundColor: "rgba(255, 255, 255, 0.08)",
-                                                transform: "scale(1.1)",
-                                            },
-                                            // 위 이전 페이지 버튼과 동일 — 어두운 배경에서도 흐리게 보이는 비활성색
-                                            "&.Mui-disabled": { color: "rgba(255, 255, 255, 0.3)" },
-                                            transition: "all 0.2s ease-in-out",
-                                        }}
-                                    >
-                                        <KeyboardArrowRightIcon />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-                        </Box>
-                    ) : null}
+                    {fileType === "pdf" && numPages && !pageNavBelow ? pageNav : null}
                 </Box>
                 {/* 파일 아이콘 + 이름 — sm 이하에서는 숨긴다(공간 확보). flexGrow 스페이서는 유지해 툴바를 오른쪽에 붙인다. */}
                 <Box
@@ -2725,6 +2732,25 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     )}
                 </Box>
             </DialogTitle>
+            {/* PDF 페이지 이동을 머리줄 아래 한 줄로 내린 경우(pageNavPosition="below") — 머리줄이 다른 단추로 찬 좁은 화면용 */}
+            {pageNavBelow && fileType === "pdf" && numPages ? (
+                <Box
+                    sx={{
+                        height: "44px",
+                        boxSizing: "border-box",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        backgroundColor: "grey.900",
+                        borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                        userSelect: "none",
+                        flexShrink: 0,
+                    }}
+                    onContextMenu={(e) => e.preventDefault()}
+                >
+                    {pageNav}
+                </Box>
+            ) : null}
             {/* 다중 파일 — 본문 좌우 오버레이 화살표(데스크톱). 모바일은 내용을 가리지 않게 하단 바로 대신한다. */}
             {!isMobile && fileList.length > 1 && fileIndex > 0 ? (
                 <IconButton

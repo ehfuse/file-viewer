@@ -1,3 +1,4 @@
+import type { ViewerLabels } from "../i18n/messages";
 // 뷰어가 표시할 파일 정보 (name 필수, 데이터 소스는 blob/url/loadFile 중 하나)
 export interface ViewerFile {
     name: string; // 파일명 (확장자로 미리보기 타입을 판별)
@@ -20,6 +21,8 @@ export interface FileViewerProps {
     onDownload?: (file: ViewerFile) => void | Promise<void>; // 다운로드 동작 대체 (기본: 로드된 blob 을 앵커로 저장)
     onShare?: (file: ViewerFile) => void | Promise<void>; // 공유 동작 대체 (기본: 기기 공유 창 — Web Share API 로 파일을 싣는다. 못 쓰는 환경이면 버튼을 숨긴다)
     pdfAssetBase?: string; // pdfjs 자산(worker/cmaps/폰트/wasm) 정적 경로 (기본 "/pdfjs" — setup-pdfjs 스크립트 참고)
+    locale?: string; // 화면 문구 언어 — ko·en·ja·mn·kk (기본 ko, "en-US" 처럼 지역이 붙어도 된다, 모르는 언어는 영어)
+    labels?: Partial<ViewerLabels>; // 문구를 직접 바꿀 때 — 언어 기본 문구 위에 덮어쓴다
 }
 
 // 뷰어가 판별하는 파일 타입

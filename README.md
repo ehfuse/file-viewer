@@ -55,6 +55,8 @@ interface FileViewerProps {
     loadFile?: (file: ViewerFile) => Promise<Blob>; // 커스텀 blob 로더 (인증 다운로더 등)
     onDownload?: (file: ViewerFile) => void | Promise<void>; // 다운로드 동작 대체
     pdfAssetBase?: string; // pdfjs 자산 경로 (기본 "/pdfjs")
+    locale?: string; // 화면 문구 언어 — ko·en·ja·mn·kk (기본 ko, 모르는 언어는 영어)
+    labels?: Partial<ViewerLabels>; // 문구를 직접 바꿀 때 (언어 기본 문구 위에 덮어쓴다)
     convertOffice?: (blob: Blob, file: ViewerFile) => Promise<Blob>; // doc·docx·ppt·pptx·hwp·hwpx → PDF 변환기 (주면 그 문서도 PDF 로 미리보기)
 }
 
@@ -66,6 +68,16 @@ function ensureFileExtension(rawName: string, mimeType: string): string;
 function getEditorLanguage(fileName: string): string;
 function saveBlobAsFile(blob: Blob, filename: string): void;
 ```
+
+## 화면 언어
+
+`locale` 로 툴팁·안내 문구 언어를 고른다(ko · en · ja · mn · kk, 기본 ko). 문구 하나만 바꾸려면 `labels` 로 덮어쓴다.
+
+```tsx
+<FileViewer open={open} onClose={close} file={file} locale="mn" labels={{ download: "Татаж авах" }} />
+```
+
+회전 단추에는 언어와 상관없는 `data-viewer-action="rotate-left" | "rotate-right"` 가 붙어 있어 CSS 로 고를 수 있다.
 
 ## 예제
 

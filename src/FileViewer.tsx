@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { resolveViewerLabels } from "./i18n/messages";
 import {
     Dialog,
     Slide,
@@ -140,7 +141,11 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     onShare,
     pdfAssetBase = DEFAULT_PDFJS_ASSET_BASE,
     convertOffice,
+    locale,
+    labels,
 }) => {
+    // 화면 문구 — 언어를 안 주면 예전처럼 한국어다.
+    const t = useMemo(() => resolveViewerLabels(locale, labels), [locale, labels]);
     // 모바일(lg 미만) — 좁은 화면에선 "화면에 맞추기" 버튼을 숨긴다(핀치/±로 대체).
     const isMobile = useIsMobile();
     // sm 이하(아주 좁은 폭): 페이지 표시를 "1/1" 대신 현재 페이지만 보여준다.
@@ -584,7 +589,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             }
         } catch (error) {
             console.error("파일 로드 오류:", error);
-            setError(converting ? "미리보기를 만들지 못했습니다." : "파일을 불러올 수 없습니다.");
+            setError(converting ? t.previewFailed : t.loadFailed);
         } finally {
             setLoading(false);
         }
@@ -897,10 +902,10 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             const blob = await response.blob();
             const pngBlob = blob.type === "image/png" ? blob : await convertBlobToPng(blob);
             await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
-            setCopyNotice("이미지를 클립보드에 복사했습니다.");
+            setCopyNotice(t.imageCopied);
         } catch (error) {
             console.error("이미지 복사 오류:", error);
-            setCopyNotice("이미지를 복사할 수 없습니다.");
+            setCopyNotice(t.imageCopyFailed);
         }
     }, [fileUrl]);
 
@@ -1597,7 +1602,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         {error}
                     </Typography>
                     <Typography color="text.secondary" variant="body2" sx={{ mt: 1 }}>
-                        파일을 다운로드하여 확인해주세요.
+                        {t.downloadToCheck}
                     </Typography>
                 </Box>
             );
@@ -1736,11 +1741,11 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                         sx={{ display: "flex", flexDirection: "column", gap: 2, width: "min(360px, 100%)", m: "auto", p: 4, backgroundColor: "white", borderRadius: 2 }}
                                     >
                                         <Typography variant="h6" color={pdfPasswordAsk === "wrong" ? "error" : "text.primary"}>
-                                            {pdfPasswordAsk === "wrong" ? "암호가 맞지 않습니다" : "암호가 걸린 PDF 입니다"}
+                                            {pdfPasswordAsk === "wrong" ? t.pdfPasswordWrong : t.pdfPasswordNeeded}
                                         </Typography>
                                         <TextField
                                             type="password"
-                                            label="PDF 암호"
+                                            label={t.pdfPassword}
                                             size="small"
                                             autoFocus
                                             autoComplete="off"
@@ -1748,7 +1753,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                             onChange={(event) => setPdfPasswordInput(event.target.value)}
                                         />
                                         <Button type="submit" variant="contained" disabled={!pdfPasswordInput}>
-                                            열기
+                                            {t.open}
                                         </Button>
                                     </Box>
                                 ) : (
@@ -1758,16 +1763,16 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                     onLoadSuccess={onDocumentLoadSuccess}
                                     onLoadError={(error) => {
                                         console.error("PDF 로드 오류:", error);
-                                        setError("PDF 파일을 불러올 수 없습니다.");
+                                        setError(t.pdfLoadFailed);
                                     }}
                                     loading={<div style={{ display: "none" }} />} // 로딩 표시 숨김
                                     error={
                                         <Box sx={{ textAlign: "center", p: 4 }}>
                                             <Typography color="error" variant="h6" sx={{ mb: 2 }}>
-                                                PDF를 불러올 수 없습니다.
+                                                {t.pdfCannotLoad}
                                             </Typography>
                                             <Typography variant="body2" sx={{ color: "grey.400" }}>
-                                                파일을 다운로드하여 확인해주세요.
+                                                {t.downloadToCheck}
                                             </Typography>
                                         </Box>
                                     }
@@ -1912,7 +1917,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                     justifyContent: "center",
                                 }}
                             >
-                                <Typography color="text.secondary">파일을 읽을 수 없습니다.</Typography>
+                                <Typography color="text.secondary">{t.cannotReadFile}</Typography>
                             </Box>
                         )}
                     </Box>
@@ -1955,14 +1960,14 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                         size="small"
                                         onClick={() => setHtmlViewMode("preview")}
                                     >
-                                        미리보기
+                                        {t.htmlPreview}
                                     </Button>
                                     <Button
                                         variant={htmlViewMode === "source" ? "contained" : "outlined"}
                                         size="small"
                                         onClick={() => setHtmlViewMode("source")}
                                     >
-                                        소스코드
+                                        {t.htmlSource}
                                     </Button>
                                 </Box>
 
@@ -2077,7 +2082,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                     justifyContent: "center",
                                 }}
                             >
-                                <Typography color="text.secondary">HTML 파일을 읽을 수 없습니다.</Typography>
+                                <Typography color="text.secondary">{t.cannotReadHtml}</Typography>
                             </Box>
                         )}
                     </Box>
@@ -2112,7 +2117,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                 pointerEvents: scale > 1 ? "none" : "auto", // 확대 시에만 드래그 가능
                             }}
                         >
-                            브라우저가 비디오를 지원하지 않습니다.
+                            {t.videoUnsupported}
                         </video>
                     </Box>
                 );
@@ -2205,7 +2210,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                 }}
                             >
                                 <Typography color="text.secondary">
-                                    스프레드시트 데이터를 불러올 수 없습니다.
+                                    {t.spreadsheetFailed}
                                 </Typography>
                             </Box>
                         )}
@@ -2295,7 +2300,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                 maxWidth: "500px",
                             }}
                         >
-                            브라우저가 오디오를 지원하지 않습니다.
+                            {t.audioUnsupported}
                         </audio>
                     </Box>
                 );
@@ -2310,10 +2315,10 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         flexDirection="column"
                     >
                         <Typography variant="h6" color="text.secondary">
-                            미리보기를 지원하지 않는 파일 형식입니다
+                            {t.unsupported}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                            파일을 다운로드하여 확인해주세요.
+                            {t.downloadToCheck}
                         </Typography>
                     </Box>
                 );
@@ -2372,7 +2377,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     {isMobile ? (
                         <IconButton
                             onClick={handleClose}
-                            aria-label="뒤로"
+                            aria-label={t.back}
                             size="medium"
                             sx={{ color: "grey.300", "&:hover": { color: "white", backgroundColor: "rgba(255, 255, 255, 0.08)" } }}
                         >
@@ -2382,7 +2387,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     {/* 다중 파일 탐색 — ◀ n/m ▶ (여러 파일을 넘겨받았을 때만) */}
                     {fileList.length > 1 ? (
                         <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 0 : 0.5 }}>
-                            <Tooltip title="이전 파일">
+                            <Tooltip title={t.prevFile}>
                                 <span style={{ display: "inline-flex" }}>
                                     <IconButton
                                         onClick={() => setFileIndex((index) => Math.max(index - 1, 0))}
@@ -2401,7 +2406,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             <Typography variant="body2" sx={{ color: "grey.300", minWidth: 40, textAlign: "center", userSelect: "none" }}>
                                 {fileIndex + 1} / {fileList.length}
                             </Typography>
-                            <Tooltip title="다음 파일">
+                            <Tooltip title={t.nextFile}>
                                 <span style={{ display: "inline-flex" }}>
                                     <IconButton
                                         onClick={() => setFileIndex((index) => Math.min(index + 1, fileList.length - 1))}
@@ -2420,7 +2425,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         </Box>
                     ) : null}
                     {isMobile && fileType === "pdf" && numPages ? (
-                        <Tooltip title="페이지 목록">
+                        <Tooltip title={t.pageList}>
                             <IconButton
                                 onClick={() => setThumbnailDrawerOpen((prev) => !prev)}
                                 size="medium"
@@ -2433,7 +2438,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     {fileType === "pdf" && numPages ? (
                         <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 0 : 0.5 }}>
                             {/* disabled 버튼은 이벤트가 없어 Tooltip 이 직접 못 붙는다 — span 으로 감싼다. */}
-                            <Tooltip title="이전 페이지">
+                            <Tooltip title={t.prevPage}>
                                 <span style={{ display: "inline-flex" }}>
                                     <IconButton
                                         onClick={goToPrevPage}
@@ -2471,7 +2476,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             >
                                 {isNarrow ? pageNumber : `${pageNumber} / ${numPages}`}
                             </Typography>
-                            <Tooltip title="다음 페이지">
+                            <Tooltip title={t.nextPage}>
                                 <span style={{ display: "inline-flex" }}>
                                     <IconButton
                                         onClick={goToNextPage}
@@ -2557,7 +2562,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         <>
                             {!(isMobile && (fileType === "image" || fileType === "pdf")) && (
                                 <>
-                                    <Tooltip title="확대">
+                                    <Tooltip title={t.zoomIn}>
                                         <IconButton
                                             onClick={handleZoomIn}
                                             size="medium"
@@ -2574,7 +2579,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                             <AddIcon />
                                         </IconButton>
                                     </Tooltip>
-                                    <Tooltip title="축소">
+                                    <Tooltip title={t.zoomOut}>
                                         <IconButton
                                             onClick={handleZoomOut}
                                             size="medium"
@@ -2594,7 +2599,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                 </>
                             )}
                             {(!isMobile || fileType === "image" || fileType === "pdf") && (
-                                <Tooltip title="화면에 맞추기">
+                                <Tooltip title={t.fitToScreen}>
                                     <IconButton
                                         onClick={handleFitScreen}
                                         size="medium"
@@ -2615,8 +2620,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             {/* 이미지와 PDF 파일일 때만 회전 버튼 표시(모바일도 헤더에 둔다). */}
                             {(fileType === "image" || fileType === "pdf") && (
                                 <>
-                                    <Tooltip title="왼쪽으로 회전">
+                                    <Tooltip title={t.rotateLeft}>
                                         <IconButton
+                                            data-viewer-action="rotate-left"
                                             onClick={handleRotateLeft}
                                             size="medium"
                                             sx={{
@@ -2632,8 +2638,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                             <RotateLeftIcon />
                                         </IconButton>
                                     </Tooltip>
-                                    <Tooltip title="오른쪽으로 회전">
+                                    <Tooltip title={t.rotateRight}>
                                         <IconButton
+                                            data-viewer-action="rotate-right"
                                             onClick={handleRotateRight}
                                             size="medium"
                                             sx={{
@@ -2656,7 +2663,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
 
                     {/* 다운로드 — 데스크톱·모바일 모두 헤더에. */}
                     {(
-                        <Tooltip title="다운로드">
+                        <Tooltip title={t.download}>
                             <IconButton
                                 onClick={handleDownload}
                                 size="medium"
@@ -2677,7 +2684,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
 
                     {/* 공유 — 기기가 파일 공유를 지원하거나 앱이 onShare 를 줄 때만. */}
                     {canShare && (
-                        <Tooltip title="공유">
+                        <Tooltip title={t.share}>
                             <IconButton
                                 onClick={() => void handleShare()}
                                 size="medium"
@@ -2698,7 +2705,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
 
                     {/* 폰에서는 왼쪽의 ← 가 닫기다(0.2.23) — 같은 일을 하는 단추를 양 끝에 둘 까닭이 없다. */}
                     {isMobile ? null : (
-                        <Tooltip title="닫기">
+                        <Tooltip title={t.close}>
                             <IconButton
                                 onClick={handleClose}
                                 size="medium"
@@ -2721,7 +2728,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             {/* 다중 파일 — 본문 좌우 오버레이 화살표(데스크톱). 모바일은 내용을 가리지 않게 하단 바로 대신한다. */}
             {!isMobile && fileList.length > 1 && fileIndex > 0 ? (
                 <IconButton
-                    aria-label="이전 파일"
+                    aria-label={t.prevFile}
                     onClick={() => setFileIndex((index) => Math.max(index - 1, 0))}
                     sx={{
                         position: "fixed",
@@ -2741,7 +2748,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             ) : null}
             {!isMobile && fileList.length > 1 && fileIndex < fileList.length - 1 ? (
                 <IconButton
-                    aria-label="다음 파일"
+                    aria-label={t.nextFile}
                     onClick={() => setFileIndex((index) => Math.min(index + 1, fileList.length - 1))}
                     sx={{
                         position: "fixed",

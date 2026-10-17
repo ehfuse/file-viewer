@@ -119,7 +119,7 @@ function saveBlobAsFile(blob: Blob, filename: string): void;
   확대 중(배율 > 1)에는 끌기와 겹쳐 넘기지 않고, 두 손가락이 닿았던 동작(핀치)도 넘기지 않는다(핀치를 끝내며 파일이 넘어가던 것을 막는다).
 - `chrome="floating"` — 회색 머리줄을 그리지 않고 본문이 화면을 다 쓴다. 위에 뒤로(←) · n/m(PDF 면 쪽, 그 밖은 파일 순번) · 좌우 화살표만 띄운다. 사진 갤러리 · 작품 확대 보기용.
   떠 있는 단추의 위 여백은 `env(safe-area-inset-top)` 이고, 앱 WebView 처럼 상태바를 이미 비운 곳은 CSS 변수 `--file-viewer-safe-top` 으로 바꾼다(예: `0px`).
-- 사진 최대 배율은 8배다(PDF 와 같다 — 0.2.26 까지 3배).
+- 사진 최대 배율은 10배다(0.2.26 까지 3배).
 
 ```tsx
 <FileViewer open={open} onClose={close} file={files[i]} files={files} initialIndex={i} chrome="floating" variant="simple" toolbar={{ download: false }} />

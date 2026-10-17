@@ -79,7 +79,7 @@ const PDF_MAX_CANVAS_PX = 8192;
 const PDF_MIN_SCALE = 0.25;
 const PDF_MAX_SCALE = 8;
 /** 사진 최대 배율 — PDF 와 같게(0.2.27, 3배는 작품 세부를 보기에 모자랐다) */
-const IMAGE_MAX_SCALE = 8;
+const IMAGE_MAX_SCALE = 10;
 
 // 모바일 PDF 오버스크롤: 문서를 이 폭(px)만 화면에 남는 위치까지 자유롭게 밀 수 있다.
 // 문서 둘레에 (뷰포트 - 이 값) 만큼 스크롤 여백을 둬서, 핀치로 구석에 밀어둔 위치도

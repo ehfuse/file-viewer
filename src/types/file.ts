@@ -27,6 +27,8 @@ export interface FileViewerProps {
     pageNavPosition?: "toolbar" | "below"; // PDF 페이지 이동(‹ n ›) 자리 — 기본 머리줄, "below" 면 머리줄 아래 한 줄
     variant?: ViewerVariant; // 구성 — "full"(기본, 지금의 모든 단추) · "simple"(넘기기·다운로드·닫기만)
     toolbar?: ViewerToolbar; // 단추를 하나씩 켜고 끈다(구성보다 앞선다) — 예: { rotate: false, share: false }
+    swipe?: boolean; // 좌우로 밀어 넘기기(터치, 기본 true) — 사진 · 그 밖은 다음 · 이전 파일, PDF 는 다음 · 이전 쪽(끝 쪽에서 더 밀면 파일). 확대 중 · 두 손가락은 넘기지 않는다
+    chrome?: "bar" | "floating"; // 머리줄 꼴 — "bar"(기본, 회색 머리줄) · "floating"(머리줄 없이 뒤로 · n/m · 좌우 화살표만 본문 위에 띄운다. 사진 갤러리용)
 }
 
 // 뷰어가 판별하는 파일 타입

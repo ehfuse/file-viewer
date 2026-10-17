@@ -78,6 +78,8 @@ const PDF_MAX_CANVAS_PX = 8192;
 // 그 이상은 CSS 로 늘려 보여준다(고배율에서 약간 소프트해지는 대신 메모리 안전).
 const PDF_MIN_SCALE = 0.25;
 const PDF_MAX_SCALE = 8;
+/** 사진 최대 배율 — PDF 와 같게(0.2.27, 3배는 작품 세부를 보기에 모자랐다) */
+const IMAGE_MAX_SCALE = 8;
 
 // 모바일 PDF 오버스크롤: 문서를 이 폭(px)만 화면에 남는 위치까지 자유롭게 밀 수 있다.
 // 문서 둘레에 (뷰포트 - 이 값) 만큼 스크롤 여백을 둬서, 핀치로 구석에 밀어둔 위치도
@@ -147,6 +149,8 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     pageNavPosition = "toolbar",
     variant = "full",
     toolbar,
+    swipe = true,
+    chrome = "bar",
 }) => {
     // 머리줄에 무엇을 보일지 — 기본(full)은 예전 그대로 전부다.
     const show = useMemo(() => resolveToolbar(variant, toolbar), [variant, toolbar]);
@@ -453,23 +457,50 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         return () => document.removeEventListener("keydown", handleNavKey);
     }, [open, fileList.length, file?.name, detectedMime]);
 
-    // 다중 파일 좌우 스와이프(모바일) — 확대 중(scale>1)에는 패닝과 겹치므로 끄고, PDF 도 제외한다.
+    /**
+     * 다음 · 이전 — PDF 는 쪽을 먼저 넘기고 끝 쪽에서 파일을 넘긴다, 그 밖은 파일을 넘긴다(0.2.27).
+     * 스와이프 · 떠 있는 화살표(chrome="floating")가 함께 쓴다. 넘길 곳이 없으면 아무 일도 안 한다.
+     */
+    const isPdfNow = resolveFileType(file?.name || "", detectedMime) === "pdf";
+    const goNext = useCallback(() => {
+        if (isPdfNow && numPages && pageNumber < numPages) return goToNextPage();
+        if (fileList.length > 1 && fileIndex < fileList.length - 1) setFileIndex(fileIndex + 1);
+    }, [isPdfNow, numPages, pageNumber, goToNextPage, fileList.length, fileIndex]);
+    const goPrev = useCallback(() => {
+        if (isPdfNow && numPages && pageNumber > 1) return goToPrevPage();
+        if (fileList.length > 1 && fileIndex > 0) setFileIndex(fileIndex - 1);
+    }, [isPdfNow, numPages, pageNumber, goToPrevPage, fileList.length, fileIndex]);
+
+    // 좌우 스와이프(터치) — 사진 · 그 밖은 파일, PDF 는 쪽(끝 쪽에서 파일). 0.2.27 에서 PDF 를 넣었다(그 전엔 PDF 를 뺐다).
+    // 확대 중(scale>1)에는 패닝과 겹치므로 끈다. 두 손가락이 한 번이라도 닿은 동작(핀치)은 손가락을 다 뗄 때까지 넘기지 않는다 —
+    // 핀치를 끝내며 한 손가락이 옆으로 크게 움직여 파일이 넘어가던 것을 막는다.
     useEffect(() => {
-        if (!open || fileList.length <= 1) return;
-        if (resolveFileType(file?.name || "", detectedMime) === "pdf") return;
+        if (!open || !swipe) return;
+        if (!isPdfNow && fileList.length <= 1) return;
         if (scale > 1) return;
         let startX = 0;
         let startY = 0;
+        let multi = false;
         const handleTouchStart = (event: TouchEvent) => {
+            if (event.touches.length > 1) {
+                multi = true;
+                return;
+            }
+            multi = false;
             startX = event.touches[0]?.clientX ?? 0;
             startY = event.touches[0]?.clientY ?? 0;
         };
         const handleTouchEnd = (event: TouchEvent) => {
+            if (event.touches.length > 0) return; // 아직 손가락이 남아 있다
+            if (multi) {
+                multi = false;
+                return;
+            }
             const deltaX = (event.changedTouches[0]?.clientX ?? 0) - startX;
             const deltaY = (event.changedTouches[0]?.clientY ?? 0) - startY;
             if (Math.abs(deltaX) < 60 || Math.abs(deltaY) > Math.abs(deltaX)) return;
-            if (deltaX < 0) setFileIndex((index) => Math.min(index + 1, fileList.length - 1));
-            else setFileIndex((index) => Math.max(index - 1, 0));
+            if (deltaX < 0) goNext();
+            else goPrev();
         };
         document.addEventListener("touchstart", handleTouchStart, { passive: true });
         document.addEventListener("touchend", handleTouchEnd, { passive: true });
@@ -477,7 +508,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             document.removeEventListener("touchstart", handleTouchStart);
             document.removeEventListener("touchend", handleTouchEnd);
         };
-    }, [open, fileList.length, file?.name, detectedMime, scale]);
+    }, [open, swipe, isPdfNow, fileList.length, scale, goNext, goPrev]);
 
     // 키보드 이벤트 핸들러 (PDF 페이지 이동용)
     useEffect(() => {
@@ -657,7 +688,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         } else if (fileType === "pdf") {
             setScale((prev) => Math.min(prev + 0.25, PDF_MAX_SCALE));
         } else {
-            setScale((prev) => Math.min(prev + 0.25, 3)); // 이미지는 scale로 조정
+            setScale((prev) => Math.min(prev + 0.25, IMAGE_MAX_SCALE)); // 이미지는 scale로 조정
         }
     };
 
@@ -677,7 +708,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     // 두 개가 눌리면 시작 거리·시작 배율을 기준으로 현재 거리 비율만큼 배율을 갱신한다(핀치 줌).
     const pinchPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
 
-    const clampScale = (v: number) => Math.min(Math.max(v, 0.25), 3); // 이미지 배율 범위(버튼 줌과 동일)
+    const clampScale = (v: number) => Math.min(Math.max(v, 0.25), IMAGE_MAX_SCALE); // 이미지 배율 범위(버튼 줌과 동일)
     const clampPdfScale = (v: number) => Math.min(Math.max(v, PDF_MIN_SCALE), PDF_MAX_SCALE);
 
     // ── 이미지 확대/이동 ─────────────────────────────────────────────────────────────
@@ -2405,7 +2436,23 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         </Box>
     );
     /** 본문 높이 — 머리줄(60) + 아래 줄(있으면 44) 을 뺀다 */
-    const bodyHeight = show.pageNav && pageNavBelow && fileType === "pdf" && numPages ? "calc(100vh - 104px)" : "calc(100vh - 60px)";
+    const floating = chrome === "floating";
+    const bodyHeight = floating ? "100vh" : show.pageNav && pageNavBelow && fileType === "pdf" && numPages ? "calc(100vh - 104px)" : "calc(100vh - 60px)";
+    /** 떠 있는 단추 공통 — 반투명 검정 동그라미(0.2.27, chrome="floating") */
+    const floatBtnSx = {
+        position: "fixed",
+        zIndex: 10,
+        width: 40,
+        height: 40,
+        color: "white",
+        backgroundColor: "rgba(0, 0, 0, 0.42)",
+        backdropFilter: "blur(4px)",
+        "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.6)" },
+    } as const;
+    /** 떠 있는 꼴의 n/m — PDF(여러 쪽)를 보고 있으면 쪽, 그 밖은 파일 순번(밀어서 넘기는 것과 같은 단위다) */
+    const floatCount = fileType === "pdf" && numPages && numPages > 1 ? `${pageNumber}/${numPages}` : fileList.length > 1 ? `${fileIndex + 1}/${fileList.length}` : "";
+    const canPrev = fileIndex > 0 || (fileType === "pdf" && pageNumber > 1);
+    const canNext = (fileList.length > 1 && fileIndex < fileList.length - 1) || (fileType === "pdf" && !!numPages && pageNumber < numPages);
 
     return (
         <Dialog
@@ -2420,6 +2467,52 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             // 밑에 겹겹이 깔린 창들이 그래픽 메모리를 다 써서 맨 위 창의 조각이 늦게 그려지는 것이었고(재현으로 확인), 그것은 소비처가
             // 가려진 창을 그리기에서 빼서 푼다. 뷰어 쪽에서 가리던 것은 증상만 덮었고, 층을 하나 더 붙들어 오히려 메모리를 더 썼다.)
         >
+            {/* 떠 있는 꼴(chrome="floating", 0.2.27) — 머리줄 없이 뒤로 · n/m · 좌우 화살표만. 사진 갤러리처럼 본문이 화면을 다 쓴다 */}
+            {floating && (
+                <>
+                    {show.close && (
+                        <IconButton aria-label={t.back} onClick={handleClose} sx={{ ...floatBtnSx, top: "calc(10px + var(--file-viewer-safe-top, env(safe-area-inset-top, 0px)))", left: 10 }}>
+                            <ArrowBackIcon />
+                        </IconButton>
+                    )}
+                    {floatCount && (
+                        <Box
+                            sx={{
+                                position: "fixed",
+                                zIndex: 10,
+                                top: "calc(16px + var(--file-viewer-safe-top, env(safe-area-inset-top, 0px)))",
+                                right: 12,
+                                px: 1.25,
+                                py: 0.25,
+                                borderRadius: 999,
+                                color: "white",
+                                backgroundColor: "rgba(0, 0, 0, 0.42)",
+                                fontSize: "0.8rem",
+                                fontWeight: 700,
+                                userSelect: "none",
+                            }}
+                        >
+                            {floatCount}
+                        </Box>
+                    )}
+                    {show.fileNav && canPrev && (
+                        <IconButton aria-label={fileType === "pdf" && pageNumber > 1 ? t.prevPage : t.prevFile} onClick={goPrev} sx={{ ...floatBtnSx, left: 10, top: "50%", transform: "translateY(-50%)" }}>
+                            <KeyboardArrowLeftIcon sx={{ fontSize: 28 }} />
+                        </IconButton>
+                    )}
+                    {show.fileNav && canNext && (
+                        <IconButton
+                            aria-label={fileType === "pdf" && numPages && pageNumber < numPages ? t.nextPage : t.nextFile}
+                            onClick={goNext}
+                            sx={{ ...floatBtnSx, right: 10, top: "50%", transform: "translateY(-50%)" }}
+                        >
+                            <KeyboardArrowRightIcon sx={{ fontSize: 28 }} />
+                        </IconButton>
+                    )}
+                </>
+            )}
+            {/* 떠 있는 꼴에서는 머리줄을 아예 그리지 않는다 — sx 로 숨기면 소비처 테마의 Dialog 재정의(.MuiDialogTitle-root { display: flex })가 이겼다(artrict 에서 실측) */}
+            {!floating && (
             <DialogTitle
                 sx={{
                     display: "flex",
@@ -2737,8 +2830,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     )}
                 </Box>
             </DialogTitle>
+            )}
             {/* PDF 페이지 이동을 머리줄 아래 한 줄로 내린 경우(pageNavPosition="below") — 머리줄이 다른 단추로 찬 좁은 화면용 */}
-            {show.pageNav && pageNavBelow && fileType === "pdf" && numPages ? (
+            {!floating && show.pageNav && pageNavBelow && fileType === "pdf" && numPages ? (
                 <Box
                     sx={{
                         height: "44px",
@@ -2757,7 +2851,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                 </Box>
             ) : null}
             {/* 다중 파일 — 본문 좌우 오버레이 화살표(데스크톱). 모바일은 내용을 가리지 않게 하단 바로 대신한다. */}
-            {show.fileNav && !isMobile && fileList.length > 1 && fileIndex > 0 ? (
+            {!floating && show.fileNav && !isMobile && fileList.length > 1 && fileIndex > 0 ? (
                 <IconButton
                     aria-label={t.prevFile}
                     onClick={() => setFileIndex((index) => Math.max(index - 1, 0))}
@@ -2777,7 +2871,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                     <KeyboardArrowLeftIcon sx={{ fontSize: 30 }} />
                 </IconButton>
             ) : null}
-            {show.fileNav && !isMobile && fileList.length > 1 && fileIndex < fileList.length - 1 ? (
+            {!floating && show.fileNav && !isMobile && fileList.length > 1 && fileIndex < fileList.length - 1 ? (
                 <IconButton
                     aria-label={t.nextFile}
                     onClick={() => setFileIndex((index) => Math.min(index + 1, fileList.length - 1))}

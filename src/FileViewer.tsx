@@ -1619,7 +1619,33 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         // 그 표시가 흐려지며 사라지고 사진으로 바뀌는 순간 화면 왼쪽 위 한 조각이 몇 번 깜박였다(밑 화면이 비치거나 검게 비었다).
         // 흐려지는 움직임과 내용 갈아 끼우기가 겹치면 폰 브라우저가 그 조각을 다시 그리다 놓친다. 사진은 받는 동안 검은 화면으로 두었다가 그대로 띄운다.
         const isImage = fileType === "image";
-        if (isImage && !fileUrl && !error) return <Box sx={{ height: "100%", minHeight: 400, backgroundColor: "#000" }} />;
+        if (isImage && !fileUrl && !error) {
+            // 미리 보일 사진(file.previewUrl)이 있으면 원본을 받는 동안 그것을 원본과 같은 자리 · 크기로 띄운다(0.2.31 — 큰 원본을
+            // 받는 동안 검은 화면만 한동안 보였다). 원본이 준비되면 아래 사진 칸이 그 자리를 그대로 이어받는다(같은 여백 · contain).
+            const preview = typeof file?.previewUrl === "string" ? file.previewUrl : "";
+            if (preview) {
+                return (
+                    <Box
+                        sx={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            height: "100%",
+                            backgroundColor: "#000",
+                            p: 2,
+                        }}
+                    >
+                        <img
+                            src={preview}
+                            alt={file?.name ?? ""}
+                            draggable={false}
+                            style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
+                        />
+                    </Box>
+                );
+            }
+            return <Box sx={{ height: "100%", minHeight: 400, backgroundColor: "#000" }} />;
+        }
 
         if (showLoading && !isSpreadsheet && !isImage) {
             return (

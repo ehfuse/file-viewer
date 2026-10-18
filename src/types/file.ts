@@ -7,6 +7,7 @@ export interface ViewerFile {
     blob?: Blob; // 이미 로드된 blob (지정 시 그대로 사용, url 보다 우선)
     mimeType?: string; // MIME 타입 (확장자가 없을 때 타입 판별 폴백)
     size?: number; // 파일 크기 (바이트, 표시용 — 선택)
+    previewUrl?: string; // 사진 — 원본을 받는 동안 먼저 보일 작은 사진(이미 받아 둔 썸네일 등). 원본이 그려지면 바꿔 낀다(0.2.31)
     [key: string]: unknown; // 소비처 부가 필드 (loadFile/onDownload 콜백에서 사용)
 }
 

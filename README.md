@@ -45,6 +45,7 @@ interface ViewerFile {
     url?: string; // 파일 URL (fetch)
     blob?: Blob; // 이미 로드된 blob
     mimeType?: string; // 확장자 없을 때 타입 폴백
+    previewUrl?: string; // 사진 — 원본을 받는 동안 먼저 보일 작은 사진(0.2.31, 이미 받아 둔 썸네일이면 열자마자 보인다)
     [key: string]: unknown; // 소비처 부가 필드
 }
 

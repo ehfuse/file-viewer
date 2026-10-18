@@ -2505,7 +2505,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                 </IconButton>
                             )}
                             {floatCount && (
-                                <Box component="span" sx={{ px: show.fileNav ? 0.25 : 1.5, fontSize: "0.85rem", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                                <Box component="span" sx={{ px: show.fileNav ? 1 : 1.5, fontSize: "1rem", fontWeight: 700, fontVariantNumeric: "tabular-nums" }} /* 0.2.29 — 글자 0.85 → 1rem, 화살표와 사이 2px → 8px */>
                                     {floatCount}
                                 </Box>
                             )}

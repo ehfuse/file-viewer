@@ -2467,7 +2467,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             // 밑에 겹겹이 깔린 창들이 그래픽 메모리를 다 써서 맨 위 창의 조각이 늦게 그려지는 것이었고(재현으로 확인), 그것은 소비처가
             // 가려진 창을 그리기에서 빼서 푼다. 뷰어 쪽에서 가리던 것은 증상만 덮었고, 층을 하나 더 붙들어 오히려 메모리를 더 썼다.)
         >
-            {/* 떠 있는 꼴(chrome="floating", 0.2.27) — 머리줄 없이 뒤로 · n/m · 좌우 화살표만. 사진 갤러리처럼 본문이 화면을 다 쓴다 */}
+            {/* 떠 있는 꼴(chrome="floating", 0.2.27) — 머리줄 없이 뒤로(왼쪽 위) · [‹ n/m ›](오른쪽 위, 0.2.28)만. 사진 갤러리처럼 본문이 화면을 다 쓴다 */}
             {floating && (
                 <>
                     {show.close && (
@@ -2475,39 +2475,51 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                             <ArrowBackIcon />
                         </IconButton>
                     )}
-                    {floatCount && (
+                    {/* n/m 과 좌우 화살표는 위쪽 오른쪽에 한 묶음 — 가운데 양옆에 두면 그림을 가렸다(0.2.28, artrict 사용자 지적).
+                        끝에 닿은 쪽 화살표는 숨기지 않고 흐리게 둔다(묶음 자리가 흔들리지 않게). */}
+                    {(floatCount || (show.fileNav && (canPrev || canNext))) && (
                         <Box
                             sx={{
                                 position: "fixed",
                                 zIndex: 10,
-                                top: "calc(16px + var(--file-viewer-safe-top, env(safe-area-inset-top, 0px)))",
-                                right: 12,
-                                px: 1.25,
-                                py: 0.25,
+                                top: "calc(10px + var(--file-viewer-safe-top, env(safe-area-inset-top, 0px)))",
+                                right: 10,
+                                height: 40,
+                                display: "flex",
+                                alignItems: "center",
                                 borderRadius: 999,
                                 color: "white",
                                 backgroundColor: "rgba(0, 0, 0, 0.42)",
-                                fontSize: "0.8rem",
-                                fontWeight: 700,
+                                backdropFilter: "blur(4px)",
                                 userSelect: "none",
                             }}
                         >
-                            {floatCount}
+                            {show.fileNav && (
+                                <IconButton
+                                    aria-label={fileType === "pdf" && pageNumber > 1 ? t.prevPage : t.prevFile}
+                                    onClick={goPrev}
+                                    disabled={!canPrev}
+                                    sx={{ width: 40, height: 40, color: "white", "&.Mui-disabled": { color: "rgba(255,255,255,0.35)" } }}
+                                >
+                                    <KeyboardArrowLeftIcon sx={{ fontSize: 26 }} />
+                                </IconButton>
+                            )}
+                            {floatCount && (
+                                <Box component="span" sx={{ px: show.fileNav ? 0.25 : 1.5, fontSize: "0.85rem", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                                    {floatCount}
+                                </Box>
+                            )}
+                            {show.fileNav && (
+                                <IconButton
+                                    aria-label={fileType === "pdf" && numPages && pageNumber < numPages ? t.nextPage : t.nextFile}
+                                    onClick={goNext}
+                                    disabled={!canNext}
+                                    sx={{ width: 40, height: 40, color: "white", "&.Mui-disabled": { color: "rgba(255,255,255,0.35)" } }}
+                                >
+                                    <KeyboardArrowRightIcon sx={{ fontSize: 26 }} />
+                                </IconButton>
+                            )}
                         </Box>
-                    )}
-                    {show.fileNav && canPrev && (
-                        <IconButton aria-label={fileType === "pdf" && pageNumber > 1 ? t.prevPage : t.prevFile} onClick={goPrev} sx={{ ...floatBtnSx, left: 10, top: "50%", transform: "translateY(-50%)" }}>
-                            <KeyboardArrowLeftIcon sx={{ fontSize: 28 }} />
-                        </IconButton>
-                    )}
-                    {show.fileNav && canNext && (
-                        <IconButton
-                            aria-label={fileType === "pdf" && numPages && pageNumber < numPages ? t.nextPage : t.nextFile}
-                            onClick={goNext}
-                            sx={{ ...floatBtnSx, right: 10, top: "50%", transform: "translateY(-50%)" }}
-                        >
-                            <KeyboardArrowRightIcon sx={{ fontSize: 28 }} />
-                        </IconButton>
                     )}
                 </>
             )}

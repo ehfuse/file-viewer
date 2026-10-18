@@ -802,6 +802,17 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         });
     }, [applyImageView, clampImageTranslate]);
 
+    /**
+     * 손가락 제스처(핀치 · 끌기) 동안만 사진을 GPU 층으로 고정한다(0.2.30 — 핀치 중 버벅임).
+     * 고정하지 않으면 배율이 바뀌는 프레임마다 브라우저가 사진을 그 배율로 다시 그린다(10배면 화면 몇십 장 크기) — 이것이 핀치가 끊기던 원인이다.
+     * 고정하면 이미 그린 그림을 늘리기만 해서 매 프레임이 가볍다. 대신 늘린 만큼 흐려지므로 손을 다 떼면 풀어 지금 배율로 한 번 선명하게 다시 그린다.
+     */
+    const setImageGestureLayer = useCallback((on: boolean) => {
+        const el = imageContentRef.current;
+        if (!el) return;
+        el.style.willChange = on ? "transform" : "";
+    }, []);
+
     /** 이미지 제스처 상태를 비운다(닫기·파일 전환·화면맞추기). */
     const resetImageGesture = useCallback(() => {
         if (imageFrameRef.current) {
@@ -810,8 +821,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         }
         pinchPointersRef.current.clear();
         imagePanRef.current = null;
+        setImageGestureLayer(false);
         imagePinchRef.current = null;
-    }, []);
+    }, [setImageGestureLayer]);
 
     /** 이미지 엘리먼트 연결 — 새로 마운트될 때(파일 전환) 변환을 초기 상태로 되돌린다. */
     const attachImageContent = useCallback(
@@ -854,6 +866,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         const view = imageViewRef.current;
         if (pts.length === 2) {
             imagePanRef.current = null;
+            setImageGestureLayer(true);
             const rect = e.currentTarget.getBoundingClientRect();
             imagePinchRef.current = {
                 startDist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1,
@@ -867,6 +880,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             };
         } else if (pts.length === 1 && isImagePannable(view.scale, view.rotation)) {
             imagePanRef.current = { startX: e.clientX, startY: e.clientY, baseTx: view.tx, baseTy: view.ty };
+            setImageGestureLayer(true);
         }
     };
 
@@ -914,6 +928,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         }
         if (pinchPointersRef.current.size === 0) {
             imagePanRef.current = null;
+            setImageGestureLayer(false);
         } else if (pinchPointersRef.current.size === 1) {
             // 핀치에서 한 손가락만 남으면 그 손가락으로 팬을 이어간다.
             if (isImagePannable(view.scale, view.rotation)) {

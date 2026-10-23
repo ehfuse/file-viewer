@@ -17,6 +17,7 @@ export interface ViewerLabels {
     rotateRight: string; // 오른쪽으로 회전
     download: string; // 다운로드
     share: string; // 공유
+    print: string; // 인쇄
     unsupported: string; // 미리보기를 지원하지 않는 형식
     downloadToCheck: string; // 내려받아 확인하라는 안내
     loadFailed: string; // 파일을 불러올 수 없음
@@ -42,7 +43,7 @@ export interface ViewerLabels {
 export const VIEWER_MESSAGES: Record<ViewerLocale, ViewerLabels> = {
     ko: {
         back: "뒤로", close: "닫기", prevFile: "이전 파일", nextFile: "다음 파일", pageList: "페이지 목록", prevPage: "이전 페이지", nextPage: "다음 페이지",
-        zoomIn: "확대", zoomOut: "축소", fitToScreen: "화면에 맞추기", rotateLeft: "왼쪽으로 회전", rotateRight: "오른쪽으로 회전", download: "다운로드", share: "공유",
+        zoomIn: "확대", zoomOut: "축소", fitToScreen: "화면에 맞추기", rotateLeft: "왼쪽으로 회전", rotateRight: "오른쪽으로 회전", download: "다운로드", share: "공유", print: "인쇄",
         unsupported: "미리보기를 지원하지 않는 파일 형식입니다", downloadToCheck: "파일을 다운로드하여 확인해주세요.", loadFailed: "파일을 불러올 수 없습니다.",
         previewFailed: "미리보기를 만들지 못했습니다.", pdfLoadFailed: "PDF 파일을 불러올 수 없습니다.", pdfCannotLoad: "PDF를 불러올 수 없습니다.",
         pdfPasswordNeeded: "암호가 걸린 PDF 입니다", pdfPasswordWrong: "암호가 맞지 않습니다", pdfPassword: "PDF 암호", open: "열기",
@@ -52,7 +53,7 @@ export const VIEWER_MESSAGES: Record<ViewerLocale, ViewerLabels> = {
     },
     en: {
         back: "Back", close: "Close", prevFile: "Previous file", nextFile: "Next file", pageList: "Pages", prevPage: "Previous page", nextPage: "Next page",
-        zoomIn: "Zoom in", zoomOut: "Zoom out", fitToScreen: "Fit to screen", rotateLeft: "Rotate left", rotateRight: "Rotate right", download: "Download", share: "Share",
+        zoomIn: "Zoom in", zoomOut: "Zoom out", fitToScreen: "Fit to screen", rotateLeft: "Rotate left", rotateRight: "Rotate right", download: "Download", share: "Share", print: "Print",
         unsupported: "Preview is not available for this file type", downloadToCheck: "Please download the file to view it.", loadFailed: "Could not load the file.",
         previewFailed: "Could not create a preview.", pdfLoadFailed: "Could not load the PDF file.", pdfCannotLoad: "Could not load the PDF.",
         pdfPasswordNeeded: "This PDF is password-protected", pdfPasswordWrong: "The password is incorrect", pdfPassword: "PDF password", open: "Open",
@@ -62,7 +63,7 @@ export const VIEWER_MESSAGES: Record<ViewerLocale, ViewerLabels> = {
     },
     ja: {
         back: "戻る", close: "閉じる", prevFile: "前のファイル", nextFile: "次のファイル", pageList: "ページ一覧", prevPage: "前のページ", nextPage: "次のページ",
-        zoomIn: "拡大", zoomOut: "縮小", fitToScreen: "画面に合わせる", rotateLeft: "左に回転", rotateRight: "右に回転", download: "ダウンロード", share: "共有",
+        zoomIn: "拡大", zoomOut: "縮小", fitToScreen: "画面に合わせる", rotateLeft: "左に回転", rotateRight: "右に回転", download: "ダウンロード", share: "共有", print: "印刷",
         unsupported: "このファイル形式はプレビューできません", downloadToCheck: "ファイルをダウンロードしてご確認ください。", loadFailed: "ファイルを読み込めません。",
         previewFailed: "プレビューを作成できませんでした。", pdfLoadFailed: "PDFファイルを読み込めません。", pdfCannotLoad: "PDFを読み込めません。",
         pdfPasswordNeeded: "パスワード付きのPDFです", pdfPasswordWrong: "パスワードが正しくありません", pdfPassword: "PDFパスワード", open: "開く",
@@ -72,7 +73,7 @@ export const VIEWER_MESSAGES: Record<ViewerLocale, ViewerLabels> = {
     },
     mn: {
         back: "Буцах", close: "Хаах", prevFile: "Өмнөх файл", nextFile: "Дараах файл", pageList: "Хуудсууд", prevPage: "Өмнөх хуудас", nextPage: "Дараах хуудас",
-        zoomIn: "Томруулах", zoomOut: "Жижигрүүлэх", fitToScreen: "Дэлгэцэнд тааруулах", rotateLeft: "Зүүн тийш эргүүлэх", rotateRight: "Баруун тийш эргүүлэх", download: "Татах", share: "Хуваалцах",
+        zoomIn: "Томруулах", zoomOut: "Жижигрүүлэх", fitToScreen: "Дэлгэцэнд тааруулах", rotateLeft: "Зүүн тийш эргүүлэх", rotateRight: "Баруун тийш эргүүлэх", download: "Татах", share: "Хуваалцах", print: "Хэвлэх",
         unsupported: "Энэ төрлийн файлыг урьдчилан харах боломжгүй", downloadToCheck: "Файлыг татаж аваад үзнэ үү.", loadFailed: "Файлыг ачаалж чадсангүй.",
         previewFailed: "Урьдчилан харах хувилбарыг үүсгэж чадсангүй.", pdfLoadFailed: "PDF файлыг ачаалж чадсангүй.", pdfCannotLoad: "PDF-ийг ачаалж чадсангүй.",
         pdfPasswordNeeded: "Нууц үгтэй PDF байна", pdfPasswordWrong: "Нууц үг буруу байна", pdfPassword: "PDF нууц үг", open: "Нээх",
@@ -82,7 +83,7 @@ export const VIEWER_MESSAGES: Record<ViewerLocale, ViewerLabels> = {
     },
     kk: {
         back: "Артқа", close: "Жабу", prevFile: "Алдыңғы файл", nextFile: "Келесі файл", pageList: "Беттер", prevPage: "Алдыңғы бет", nextPage: "Келесі бет",
-        zoomIn: "Үлкейту", zoomOut: "Кішірейту", fitToScreen: "Экранға сыйдыру", rotateLeft: "Солға бұру", rotateRight: "Оңға бұру", download: "Жүктеп алу", share: "Бөлісу",
+        zoomIn: "Үлкейту", zoomOut: "Кішірейту", fitToScreen: "Экранға сыйдыру", rotateLeft: "Солға бұру", rotateRight: "Оңға бұру", download: "Жүктеп алу", share: "Бөлісу", print: "Басып шығару",
         unsupported: "Бұл файл түрін алдын ала қарау мүмкін емес", downloadToCheck: "Файлды жүктеп алып қараңыз.", loadFailed: "Файлды жүктеу мүмкін болмады.",
         previewFailed: "Алдын ала қарау нұсқасын жасау мүмкін болмады.", pdfLoadFailed: "PDF файлын жүктеу мүмкін болмады.", pdfCannotLoad: "PDF жүктеу мүмкін болмады.",
         pdfPasswordNeeded: "Құпиясөзбен қорғалған PDF", pdfPasswordWrong: "Құпиясөз қате", pdfPassword: "PDF құпиясөзі", open: "Ашу",

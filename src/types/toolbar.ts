@@ -8,6 +8,7 @@ export type ViewerToolbarItem =
     | "fit" // 화면에 맞추기
     | "rotate" // 왼쪽·오른쪽 회전
     | "download" // 다운로드
+    | "print" // 인쇄(0.2.32 — PDF · 이미지 · HTML · 글. 오피스 문서는 바꾼 PDF 를 찍는다)
     | "share" // 공유(기기가 지원하거나 onShare 를 줄 때)
     | "close"; // 닫기(폰은 왼쪽 ←) — 끄면 Esc·뒤로가기로만 닫힌다
 
@@ -19,8 +20,8 @@ export type ViewerToolbar = Partial<Record<ViewerToolbarItem, boolean>>;
 
 /** 구성별 기본 표 */
 const PRESETS: Record<ViewerVariant, Record<ViewerToolbarItem, boolean>> = {
-    full: { fileNav: true, pageList: true, pageNav: true, fileName: true, zoom: true, fit: true, rotate: true, download: true, share: true, close: true },
-    simple: { fileNav: true, pageList: false, pageNav: true, fileName: true, zoom: false, fit: false, rotate: false, download: true, share: false, close: true },
+    full: { fileNav: true, pageList: true, pageNav: true, fileName: true, zoom: true, fit: true, rotate: true, download: true, print: true, share: true, close: true },
+    simple: { fileNav: true, pageList: false, pageNav: true, fileName: true, zoom: false, fit: false, rotate: false, download: true, print: true, share: false, close: true },
 };
 
 /** 구성과 개별 설정을 합쳐 무엇을 보일지 정한다 — 개별 설정이 구성보다 앞선다 */

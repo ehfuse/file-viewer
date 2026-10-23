@@ -34,6 +34,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MenuIcon from "@mui/icons-material/Menu";
 import ShareIcon from "@mui/icons-material/Share";
 import DownloadIcon from "@mui/icons-material/Download";
+import PrintIcon from "@mui/icons-material/Print";
 // 확대/축소는 돋보기 대신 +/- 글리프를 쓴다(모바일에서 의미가 더 즉각적).
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -648,6 +649,47 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         } catch (error) {
             console.error("파일 다운로드 오류:", error);
         }
+    };
+
+    /**
+     * 인쇄(0.2.32) — 화면에 띄운 미리보기를 숨은 iframe 에 넣고 그 창의 인쇄를 부른다(뷰어 · 화면 틀이 같이 찍히지 않게).
+     * PDF(오피스 문서는 바꾼 PDF)는 그대로, 이미지는 종이에 맞춰, HTML · 글은 내용 그대로 찍는다. 표(엑셀) · 압축 등은 아이콘을 숨긴다.
+     */
+    const printType = file ? resolveFileType(file.name, detectedMime) : "";
+    const canPrint = Boolean(fileUrl) && !error && ["pdf", "image", "html", "text", "code"].includes(printType);
+    const handlePrint = () => {
+        if (!canPrint) return;
+        const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const iframe = document.createElement("iframe");
+        iframe.setAttribute("aria-hidden", "true");
+        iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+        if (printType === "pdf") {
+            iframe.src = fileUrl;
+        } else if (printType === "image") {
+            iframe.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><style>@page{margin:10mm}html,body{margin:0;height:100%}img{display:block;max-width:100%;max-height:100vh;margin:0 auto;object-fit:contain}</style></head><body><img src="${fileUrl}"></body></html>`;
+        } else if (printType === "html") {
+            iframe.srcdoc = htmlContent;
+        } else {
+            iframe.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><style>@page{margin:15mm}body{margin:0}pre{white-space:pre-wrap;word-break:break-word;font:10pt/1.5 monospace}</style></head><body><pre>${escapeHtml(textContent)}</pre></body></html>`;
+        }
+        iframe.onload = () => {
+            const win = iframe.contentWindow;
+            if (!win) return;
+            // 인쇄 창을 닫은 뒤 걷는다 — 바로 지우면 일부 브라우저가 빈 종이를 찍는다. 못 받는 브라우저를 위해 1분 뒤에도 걷는다.
+            const cleanup = () => window.setTimeout(() => iframe.remove(), 0);
+            win.addEventListener("afterprint", cleanup);
+            window.setTimeout(() => iframe.isConnected && iframe.remove(), 60_000);
+            // PDF 는 브라우저 PDF 뷰어가 문서를 다 그린 뒤 찍어야 빈 장이 나오지 않는다.
+            window.setTimeout(() => {
+                try {
+                    win.focus();
+                    win.print();
+                } catch (error) {
+                    console.error("인쇄 오류:", error);
+                }
+            }, printType === "pdf" ? 400 : 0);
+        };
+        document.body.appendChild(iframe);
     };
 
     /**
@@ -2836,6 +2878,27 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                 }}
                             >
                                 <DownloadIcon />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+
+                    {/* 인쇄 — 다운로드 옆(0.2.32). 찍을 수 있는 미리보기일 때만. */}
+                    {show.print && canPrint && (
+                        <Tooltip title={t.print}>
+                            <IconButton
+                                onClick={handlePrint}
+                                size="medium"
+                                sx={{
+                                    color: "grey.300",
+                                    "&:hover": {
+                                        color: "white",
+                                        backgroundColor: "rgba(255, 255, 255, 0.08)",
+                                        transform: "scale(1.1)",
+                                    },
+                                    transition: "all 0.2s ease-in-out",
+                                }}
+                            >
+                                <PrintIcon />
                             </IconButton>
                         </Tooltip>
                     )}

@@ -8,7 +8,7 @@
  * @author KIM YOUNG JIN (ehfuse@gmail.com)
  */
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { resolveViewerLabels } from "./i18n/messages";
 import { resolveToolbar } from "./types/toolbar";
 import {
@@ -361,6 +361,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         setPdfPasswordInput("");
         setNumPages(undefined);
         setPageNumber(1);
+        pdfPageCacheRef.current.clear(); // 다른 파일의 그림을 보이지 않게
         setPdfOrientation("portrait");
         setPageBaseRotation(0);
         setPageAspect(0);
@@ -386,6 +387,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
 
     // PDF 관련 함수들
     const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+        pdfPageCacheRef.current.clear();
         setNumPages(numPages);
         setPageNumber(1);
         pdfCenterPendingRef.current = true; // 새 문서는 첫 렌더에서 가운데로
@@ -1127,6 +1129,65 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         return true;
     };
 
+    /**
+     * 그려 둔 페이지(0.2.35 — 1 → 2 → 1 로 돌아가면 1 이 다시 그려지기 전에 백지부터 보였다).
+     * 페이지를 다 그릴 때마다 그 그림을 복사해 둔다(배율 · 회전이 다르면 다른 그림이다 — 열쇠에 넣는다).
+     * 그린 적 있는 페이지로 옮기면 복사본을 그 자리에 먼저 얹고, 새로 다 그려지면 걷는다. 그림은 메모리를 많이 먹어 최근 몇 장만 둔다.
+     */
+    const PDF_PAGE_CACHE_MAX = 6;
+    const pdfPageCacheRef = useRef(new Map<string, HTMLCanvasElement>());
+    const pdfNavOverlayRef = useRef(false);
+    const pdfPageKeyOf = (page: number) => `${page}:${rotation}:${pdfRenderWidth}`;
+
+    /** 방금 그린 페이지를 복사해 둔다. */
+    const rememberPdfPage = () => {
+        const canvas = getPdfDocEl()?.querySelector("canvas");
+        if (!canvas || !canvas.width || !canvas.height) return;
+        const copy = document.createElement("canvas");
+        copy.width = canvas.width;
+        copy.height = canvas.height;
+        const ctx = copy.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(canvas, 0, 0);
+        const cache = pdfPageCacheRef.current;
+        const key = pdfPageKeyOf(pageNumber);
+        cache.delete(key);
+        cache.set(key, copy);
+        while (cache.size > PDF_PAGE_CACHE_MAX) {
+            const oldest = cache.keys().next().value;
+            if (oldest === undefined) break;
+            cache.delete(oldest);
+        }
+    };
+
+    /** 그려 둔 페이지를 지금 페이지 자리(같은 폭 · 그 페이지 비율의 높이)에 얹는다. 성공 여부를 돌려준다. */
+    const showCachedPdfPage = (cached: HTMLCanvasElement): boolean => {
+        const outer = pdfOuterRef.current;
+        const canvas = getPdfDocEl()?.querySelector("canvas");
+        if (!outer || !canvas) return false;
+        const rect = canvas.getBoundingClientRect();
+        const outerRect = outer.getBoundingClientRect();
+        if (!rect.width) return false;
+        const snap = document.createElement("canvas");
+        snap.width = cached.width;
+        snap.height = cached.height;
+        const ctx = snap.getContext("2d");
+        if (!ctx) return false;
+        ctx.drawImage(cached, 0, 0);
+        Object.assign(snap.style, {
+            position: "absolute",
+            left: `${rect.left - outerRect.left}px`,
+            top: `${rect.top - outerRect.top}px`,
+            width: `${rect.width}px`,
+            height: `${(rect.width * cached.height) / cached.width}px`,
+            pointerEvents: "none",
+            zIndex: "1",
+        });
+        outer.appendChild(snap);
+        pdfSnapshotRef.current = snap;
+        return true;
+    };
+
     /** 스냅샷 오버레이를 제거하고 숨겨둔 Document 를 되살린다. */
     const removePdfSnapshotOverlay = () => {
         pdfSnapshotRef.current?.remove();
@@ -1351,6 +1412,12 @@ export const FileViewer: React.FC<FileViewerProps> = ({
      */
     const handlePageRenderSuccess = () => {
         const pageKey = `${pageNumber}:${rotation}`;
+        rememberPdfPage();
+        // 그려 둔 페이지를 얹어 두었으면 새로 다 그려졌으니 걷는다.
+        if (pdfNavOverlayRef.current && !pdfPinchRestoreRef.current) {
+            pdfNavOverlayRef.current = false;
+            removePdfSnapshotOverlay();
+        }
         if (pdfPinchRestoreRef.current) {
             pdfLastPageKeyRef.current = pageKey;
             finishPdfPinchCommit();
@@ -1362,6 +1429,21 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             centerPdfScroll();
         }
     };
+
+    // 페이지를 옮기면 — 그려 둔 그림이 있으면 새 페이지가 그려지기 전(화면에 칠하기 전)에 얹는다.
+    const prevPdfPageRef = useRef(pageNumber);
+    useLayoutEffect(() => {
+        if (prevPdfPageRef.current === pageNumber) return;
+        prevPdfPageRef.current = pageNumber;
+        if (pdfPinchRestoreRef.current) return;
+        const cached = pdfPageCacheRef.current.get(pdfPageKeyOf(pageNumber));
+        if (pdfNavOverlayRef.current) {
+            pdfNavOverlayRef.current = false;
+            removePdfSnapshotOverlay();
+        }
+        if (cached && showCachedPdfPage(cached)) pdfNavOverlayRef.current = true;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pageNumber]);
 
     // 언마운트 시 예약된 핀치 프레임을 정리한다.
     useEffect(

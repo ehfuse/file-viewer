@@ -163,14 +163,22 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     const muiTheme = useTheme();
     const isNarrow = useMediaQuery(muiTheme.breakpoints.down("sm"));
     // 다중 파일 — files 를 주면 이전/다음으로 넘겨 본다(기존 file 단일 사용과 호환).
-    const fileList = useMemo<ViewerFile[]>(() => (files && files.length > 0 ? files : []), [files]);
+    // 닫히는 동안(창이 사라지는 효과 중)에는 마지막 파일을 붙든다 — 소비처가 닫으며 file 을 null 로 비우면 머리줄 아이콘
+    // (확대 · 회전 · 내려받기 …)이 효과가 끝나기 전에 먼저 사라져 보였다(0.2.x, 2026-10-30 사용자 지적).
+    const lastFilePropRef = useRef<ViewerFile | null>(null);
+    const lastFilesRef = useRef<ViewerFile[] | null>(null);
+    if (fileProp) lastFilePropRef.current = fileProp;
+    if (files && files.length > 0) lastFilesRef.current = files;
+    const keptFileProp = fileProp ?? (open ? null : lastFilePropRef.current);
+    const keptFiles = files && files.length > 0 ? files : open ? files : lastFilesRef.current;
+    const fileList = useMemo<ViewerFile[]>(() => (keptFiles && keptFiles.length > 0 ? keptFiles : []), [keptFiles]);
     const [fileIndex, setFileIndex] = useState(0);
     useEffect(() => {
         if (!open) return;
         setFileIndex(fileList.length > 0 ? Math.min(Math.max(initialIndex, 0), fileList.length - 1) : 0);
     }, [open, initialIndex, fileList]);
     // 아래 전체 로직이 보는 활성 파일 — 인덱스가 바뀌면 로드 체인이 새 파일로 다시 돈다.
-    const file = fileList.length > 0 ? (fileList[fileIndex] ?? fileProp) : fileProp;
+    const file = fileList.length > 0 ? (fileList[fileIndex] ?? keptFileProp) : keptFileProp;
     const lastDarkRef = useRef(false);
     const [loading, setLoading] = useState(true);
     const [showLoading, setShowLoading] = useState(false); // 로딩 표시 상태 관리
@@ -329,22 +337,29 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     );
 
     // 파일이 변경될 때마다 미리보기 URL 생성
+    /** 모든 보기 상태를 처음으로 — 닫힘 효과가 **끝난 뒤**(Dialog onExited)에 부른다. 닫는 순간 지우면 머리줄 · 본문이 효과 중에 비어 보인다. */
+    const resetViewState = () => {
+        if (fileUrl) {
+            URL.revokeObjectURL(fileUrl);
+        }
+        loadedBlobRef.current = null;
+        setFileUrl("");
+        setTextContent("");
+        setHtmlContent("");
+        setSpreadsheetData([]);
+        setTextFontSize(14);
+        setScale(1.0);
+        setRotation(0);
+        lastFilePropRef.current = null;
+        lastFilesRef.current = null;
+    };
+
     useEffect(() => {
         if (file && open) {
             generateFileUrl();
-        } else {
-            // 파일이 없거나 모달이 닫혔을 때 모든 상태 초기화
-            if (fileUrl) {
-                URL.revokeObjectURL(fileUrl);
-            }
-            loadedBlobRef.current = null;
-            setFileUrl("");
-            setTextContent("");
-            setHtmlContent("");
-            setSpreadsheetData([]);
-            setTextFontSize(14);
-            setScale(1.0);
-            setRotation(0);
+        } else if (open) {
+            // 열린 채 파일만 비었으면 바로 지운다. 닫힘은 onExited 가 지운다.
+            resetViewState();
         }
 
         return () => {
@@ -2546,6 +2561,8 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             // 폰에서는 흐려지며 뜨지 않고 오른쪽에서 밀려 들어온다(0.2.17) — 다른 전체 화면 창과 같은 움직임이고,
             // 반투명으로 겹치는 동안 뒤 화면과 섞여 깜박이는 일이 없다.
             {...(isMobile ? { TransitionComponent: SlideLeft } : {})}
+            // 닫힘 효과가 끝난 뒤에 상태를 비운다(위 resetViewState).
+            TransitionProps={{ onExited: resetViewState }}
             // (0.2.18~0.2.20 에서 넣었던 "뒤 막을 검게" · "같은 층 유지" 는 0.2.21 에서 걷어냈다. 깜박임의 원인은 뷰어가 아니라
             // 밑에 겹겹이 깔린 창들이 그래픽 메모리를 다 써서 맨 위 창의 조각이 늦게 그려지는 것이었고(재현으로 확인), 그것은 소비처가
             // 가려진 창을 그리기에서 빼서 푼다. 뷰어 쪽에서 가리던 것은 증상만 덮었고, 층을 하나 더 붙들어 오히려 메모리를 더 썼다.)

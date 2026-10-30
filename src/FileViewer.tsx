@@ -1135,7 +1135,11 @@ export const FileViewer: React.FC<FileViewerProps> = ({
      * 그린 적 있는 페이지로 옮기면 복사본을 그 자리에 먼저 얹고, 새로 다 그려지면 걷는다. 그림은 메모리를 많이 먹어 최근 몇 장만 둔다.
      */
     const PDF_PAGE_CACHE_MAX = 6;
-    const pdfPageCacheRef = useRef(new Map<string, HTMLCanvasElement>());
+    // 그림과 함께 화면에 보이던 크기(CSS px)를 둔다 — 페이지를 옮기는 순간 react-pdf 의 canvas 는 기본 크기(300×150)로
+    // 바뀌어 있을 때가 있어, 그 canvas 를 재면 작은 그림이 보였다가 커졌다(0.2.36 사용자 지적).
+    const pdfPageCacheRef = useRef(new Map<string, { canvas: HTMLCanvasElement; width: number; height: number }>());
+    /** 마지막으로 그려진 페이지의 화면 자리(바깥 상자 기준) — 지금 canvas 를 믿을 수 없을 때 쓴다. */
+    const pdfLastPageRectRef = useRef<{ left: number; top: number } | null>(null);
     const pdfNavOverlayRef = useRef(false);
     const pdfPageKeyOf = (page: number) => `${page}:${rotation}:${pdfRenderWidth}`;
 
@@ -1149,10 +1153,14 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         const ctx = copy.getContext("2d");
         if (!ctx) return;
         ctx.drawImage(canvas, 0, 0);
+        const rect = canvas.getBoundingClientRect();
+        const outerRect = pdfOuterRef.current?.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        if (outerRect) pdfLastPageRectRef.current = { left: rect.left - outerRect.left, top: rect.top - outerRect.top };
         const cache = pdfPageCacheRef.current;
         const key = pdfPageKeyOf(pageNumber);
         cache.delete(key);
-        cache.set(key, copy);
+        cache.set(key, { canvas: copy, width: rect.width, height: rect.height });
         while (cache.size > PDF_PAGE_CACHE_MAX) {
             const oldest = cache.keys().next().value;
             if (oldest === undefined) break;
@@ -1160,26 +1168,30 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         }
     };
 
-    /** 그려 둔 페이지를 지금 페이지 자리(같은 폭 · 그 페이지 비율의 높이)에 얹는다. 성공 여부를 돌려준다. */
-    const showCachedPdfPage = (cached: HTMLCanvasElement): boolean => {
+    /**
+     * 그려 둔 페이지를 그렸을 때의 크기 그대로 얹는다. 자리는 지금 페이지 canvas 가 제대로 된 크기면 그 자리,
+     * 아니면(기본 크기로 바뀐 순간) 마지막으로 그려진 페이지 자리. 성공 여부를 돌려준다.
+     */
+    const showCachedPdfPage = (cached: { canvas: HTMLCanvasElement; width: number; height: number }): boolean => {
         const outer = pdfOuterRef.current;
-        const canvas = getPdfDocEl()?.querySelector("canvas");
-        if (!outer || !canvas) return false;
-        const rect = canvas.getBoundingClientRect();
+        if (!outer) return false;
         const outerRect = outer.getBoundingClientRect();
-        if (!rect.width) return false;
+        const now = getPdfDocEl()?.querySelector("canvas")?.getBoundingClientRect();
+        const trusted = now && Math.abs(now.width - cached.width) < cached.width * 0.1;
+        const at = trusted ? { left: now.left - outerRect.left, top: now.top - outerRect.top } : pdfLastPageRectRef.current;
+        if (!at) return false;
         const snap = document.createElement("canvas");
-        snap.width = cached.width;
-        snap.height = cached.height;
+        snap.width = cached.canvas.width;
+        snap.height = cached.canvas.height;
         const ctx = snap.getContext("2d");
         if (!ctx) return false;
-        ctx.drawImage(cached, 0, 0);
+        ctx.drawImage(cached.canvas, 0, 0);
         Object.assign(snap.style, {
             position: "absolute",
-            left: `${rect.left - outerRect.left}px`,
-            top: `${rect.top - outerRect.top}px`,
-            width: `${rect.width}px`,
-            height: `${(rect.width * cached.height) / cached.width}px`,
+            left: `${at.left}px`,
+            top: `${at.top}px`,
+            width: `${cached.width}px`,
+            height: `${cached.height}px`,
             pointerEvents: "none",
             zIndex: "1",
         });

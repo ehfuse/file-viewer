@@ -1454,6 +1454,15 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             removePdfSnapshotOverlay();
         }
         if (cached && showCachedPdfPage(cached)) pdfNavOverlayRef.current = true;
+        // 쪽을 넘기면 바로 가운데로(0.2.35) — 옆으로 밀어 넘길 때 그 손가락이 문서를 가로로 굴린 채로 남아, 다음 쪽이 반쯤 잘려 보였다
+        // (2026-10-30 사용자 지적). 그려 둔 쪽이면 새로 그려지지 않아 onRenderSuccess 의 센터링이 오지 않을 수 있다 — 여기서도 잡고,
+        // 밀기 관성이 남아 있을 수 있어 다음 두 프레임에 한 번씩 더 잡는다. 새로 그려지는 쪽은 onRenderSuccess 가 한 번 더 맞춘다.
+        pdfCenterPendingRef.current = true;
+        centerPdfScroll();
+        requestAnimationFrame(() => {
+            centerPdfScroll();
+            requestAnimationFrame(centerPdfScroll);
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pageNumber]);
 
@@ -1927,7 +1936,10 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                     // 핀치 확정의 수동 스크롤 보정과 겹쳐 이중 보정(흔들림)을 만든다 — 끈다.
                                     overflowAnchor: "none",
                                     // 두 손가락 제스처를 브라우저 기본 확대에 뺏기지 않고 우리가 처리한다(한 손가락 팬 스크롤은 유지).
-                                    touchAction: "pan-x pan-y",
+                                    // 확대하지 않았으면(화면 맞춤) 가로 팬을 막는다(0.2.37) — 오버스크롤 여백 때문에 넓이가 화면보다 커서,
+                                    // 옆으로 밀어 쪽을 넘기는 손가락이 문서를 먼저 왼쪽으로 굴렸다(2026-10-30 사용자 지적). 가로 스크롤은 확대했을 때만.
+                                    touchAction: scale > 1.01 ? "pan-x pan-y" : "pan-y",
+                                    ...(isMobile && scale <= 1.01 ? { overflowX: "hidden" } : {}),
                                     // 확대로 컨텐츠가 넘칠 때 flex center 는 시작 부분을 잘라먹으므로
                                     // margin auto 로 가운데 정렬한다(넘치면 스크롤 가능).
                                     // 핀치 미리보기 transform 은 sx 가 아니라 핀치 핸들러가 안쪽 Page 의 DOM style 에

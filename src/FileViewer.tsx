@@ -350,6 +350,20 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         setTextFontSize(14);
         setScale(1.0);
         setRotation(0);
+        imageViewRef.current = { scale: 1, tx: 0, ty: 0, rotation: 0 };
+        setWorksheetNames([]);
+        setSelectedWorksheet("");
+        setWorkbookData(null);
+        setWorksheetLoading(false);
+        setError("");
+        setPdfPassword("");
+        setPdfPasswordAsk("");
+        setPdfPasswordInput("");
+        setNumPages(undefined);
+        setPageNumber(1);
+        setPdfOrientation("portrait");
+        setPageBaseRotation(0);
+        setPageAspect(0);
         lastFilePropRef.current = null;
         lastFilesRef.current = null;
     };
@@ -1519,33 +1533,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     const handleClose = () => {
         // 제스처 도중 닫으면 포인터 캡처가 남아 이후 터치가 죽은 요소로 라우팅된다 — 먼저 정리한다.
         resetImageGesture();
-        imageViewRef.current = { scale: 1, tx: 0, ty: 0, rotation: 0 };
         setCopyNotice("");
-        // 모든 파일의 blob URL을 정리
-        if (fileUrl) {
-            URL.revokeObjectURL(fileUrl);
-        }
-        loadedBlobRef.current = null;
-        setFileUrl("");
-        setTextContent("");
-        setHtmlContent("");
-        setSpreadsheetData([]);
-        setWorksheetNames([]);
-        setSelectedWorksheet("");
-        setWorkbookData(null);
-        setWorksheetLoading(false);
-        setScale(1.0); // 기본 스케일로 초기화
-        setRotation(0);
-        setError("");
-        // PDF 상태 초기화
-        setPdfPassword("");
-        setPdfPasswordAsk("");
-        setPdfPasswordInput("");
-        setNumPages(undefined);
-        setPageNumber(1);
-        setPdfOrientation("portrait"); // PDF 방향성도 초기화
-        setPageBaseRotation(0); // PDF 자체 회전값 초기화
-        setPageAspect(0); // 페이지 비율 초기화
+        // 보기 상태(파일 · 확대 · 회전 · PDF 쪽 …)는 여기서 비우지 않는다 — 닫힘 효과가 끝난 뒤 resetViewState(onExited)가 비운다.
+        // 여기서 비우면 효과 중에 인쇄 단추(fileUrl 이 있어야 선다)가 먼저 사라지고 확대 · 회전이 되돌아가 보였다(0.2.34).
         onClose();
     };
 

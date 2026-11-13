@@ -62,7 +62,11 @@ function cellCss(cell: any): string {
     }
     const align = cell?.alignment ?? {};
     if (align.horizontal && ["left", "center", "right", "justify"].includes(align.horizontal)) css.push(`text-align:${align.horizontal}`);
-    else if (typeof cell?.value === "number" || cell?.value instanceof Date) css.push("text-align:right");
+    else {
+        // 엑셀처럼 숫자 · 날짜는 오른쪽 — 수식 칸은 계산 결과(value.result)로 본다.
+        const raw = cell?.value && typeof cell.value === "object" && !(cell.value instanceof Date) && "result" in cell.value ? cell.value.result : cell?.value;
+        if (typeof raw === "number" || raw instanceof Date) css.push("text-align:right");
+    }
     if (align.vertical === "top") css.push("vertical-align:top");
     else if (align.vertical === "middle") css.push("vertical-align:middle");
     css.push(align.wrapText ? "white-space:pre-wrap" : "white-space:pre");

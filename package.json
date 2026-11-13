@@ -1,6 +1,6 @@
 {
     "name": "@ehfuse/file-viewer",
-    "version": "0.2.37",
+    "version": "0.2.38",
     "type": "module",
     "description": "React 파일 미리보기 다이얼로그 (이미지/PDF/텍스트/코드/HTML/스프레드시트/비디오/오디오, MUI 기반)",
     "publishConfig": {
@@ -63,6 +63,7 @@
         "@monaco-editor/react": ">=4.6.0",
         "@mui/icons-material": ">=5.0.0",
         "@mui/material": ">=5.0.0",
+        "exceljs": ">=4.0.0",
         "react": "^18.0.0 || ^19.0.0",
         "react-dom": "^18.0.0 || ^19.0.0",
         "react-pdf": ">=9.0.0",
@@ -80,6 +81,7 @@
         "@types/react": "^19.0.0",
         "@types/react-dom": "^19.0.0",
         "esbuild": "^0.25.11",
+        "exceljs": "^4.4.0",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
         "react-pdf": "^10.2.0",
@@ -90,5 +92,10 @@
     },
     "allowScripts": {
         "esbuild@0.25.12": true
+    },
+    "peerDependenciesMeta": {
+        "exceljs": {
+            "optional": true
+        }
     }
 }

@@ -54,6 +54,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import Editor from "@monaco-editor/react";
 import Spreadsheet from "react-spreadsheet";
 import * as XLSX from "xlsx";
+import { readStyledWorkbook, type StyledWorkbook } from "./utils/excelStyledHtml";
 import { LoadingProgress } from "@ehfuse/mui-fadeout-loading-progress";
 
 import type { ViewerFile, FileViewerProps } from "./types/file";
@@ -192,6 +193,8 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     const [htmlContent, setHtmlContent] = useState<string>(""); // HTML 파일 내용
     const [htmlViewMode, setHtmlViewMode] = useState<"source" | "preview">("preview"); // HTML 뷰 모드
     const [spreadsheetData, setSpreadsheetData] = useState<any[][]>([]); // 스프레드시트 데이터
+    // 서식을 살린 엑셀(.xlsx) 표 — exceljs 로 읽힌 때만(0.2.38). 없으면 위 spreadsheetData(값만)로 그린다.
+    const [styledBook, setStyledBook] = useState<StyledWorkbook | null>(null);
     const [worksheetNames, setWorksheetNames] = useState<string[]>([]); // 워크시트 이름 목록
     const [selectedWorksheet, setSelectedWorksheet] = useState<string>(""); // 선택된 워크시트
     const [workbookData, setWorkbookData] = useState<any>(null); // 전체 워크북 데이터
@@ -302,6 +305,19 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             setLoadingVisible(true);
 
             const arrayBuffer = await blob.arrayBuffer();
+            // .xlsx 는 서식 그대로(exceljs, 0.2.38) — 불러오지 못하거나 못 읽으면(설치 안 됨 · 깨진 파일) 아래 값만 그리는 길로.
+            if (extension === "xlsx") {
+                try {
+                    const styled = await readStyledWorkbook(arrayBuffer.slice(0));
+                    setStyledBook(styled);
+                    setWorksheetNames(styled.names);
+                    setSelectedWorksheet(styled.names[0]);
+                    setLoadingVisible(false);
+                    return;
+                } catch (error) {
+                    console.debug("서식 엑셀 미리보기 실패 — 값만 그린다:", error);
+                }
+            }
             const workbook = XLSX.read(arrayBuffer, { type: "array" });
             setWorksheetNames(workbook.SheetNames);
             setWorkbookData(workbook);
@@ -354,6 +370,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         setWorksheetNames([]);
         setSelectedWorksheet("");
         setWorkbookData(null);
+        setStyledBook(null);
         setWorksheetLoading(false);
         setError("");
         setPdfPassword("");
@@ -641,6 +658,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         setTextContent(""); // 텍스트 내용 초기화
         setHtmlContent(""); // HTML 내용 초기화
         setSpreadsheetData([]); // 스프레드시트 데이터 초기화
+        setStyledBook(null);
 
         let converting = false;
         try {
@@ -1624,12 +1642,16 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     // 워크시트 변경 핸들러
     const handleWorksheetChange = useCallback(
         (sheetName: string) => {
+            if (styledBook) {
+                setSelectedWorksheet(sheetName);
+                return;
+            }
             if (workbookData) {
                 setSelectedWorksheet(sheetName);
                 loadWorksheetData(workbookData, sheetName);
             }
         },
-        [workbookData, loadWorksheetData]
+        [workbookData, loadWorksheetData, styledBook]
     );
 
     // 모달 닫기
@@ -2365,7 +2387,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         }}
                     >
                         {/* 스프레드시트 데이터 */}
-                        {spreadsheetData.length > 0 || worksheetLoading ? (
+                        {spreadsheetData.length > 0 || worksheetLoading || styledBook ? (
                             <Box
                                 sx={{
                                     flex: 1,
@@ -2396,7 +2418,22 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                     },
                                 }}
                             >
-                                {spreadsheetData.length > 0 && (
+                                {/* 서식을 살린 표(.xlsx, exceljs) — 칸 서식은 칸마다 인라인, 엑셀 같은 눈금선 · 열 머리 · 줄 번호는 여기서. */}
+                                {styledBook ? (
+                                    <Box
+                                        sx={{
+                                            minWidth: "max-content",
+                                            "& table.fv-xl": { borderCollapse: "collapse", tableLayout: "fixed", fontSize: "13px", fontFamily: "Calibri, 'Malgun Gothic', sans-serif", color: "#000" },
+                                            "& table.fv-xl td": { border: "1px solid #e2e2e2", px: "4px", py: 0, overflow: "hidden", textOverflow: "clip", verticalAlign: "bottom", lineHeight: 1.3 },
+                                            "& table.fv-xl th": { bgcolor: "#f3f3f3", border: "1px solid #d0d0d0", color: "#555", fontWeight: 400, fontSize: "12px", textAlign: "center", p: 0, position: "sticky", zIndex: 1 },
+                                            "& table.fv-xl thead th": { top: 0, zIndex: 2, height: "22px" },
+                                            "& table.fv-xl th.fv-xl-row": { left: 0 },
+                                            "& table.fv-xl th.fv-xl-corner": { left: 0, top: 0, zIndex: 3 },
+                                        }}
+                                        dangerouslySetInnerHTML={{ __html: styledBook.html[selectedWorksheet] || "" }}
+                                    />
+                                ) : null}
+                                {!styledBook && spreadsheetData.length > 0 && (
                                     <Box
                                         sx={{
                                             minWidth: "max-content", // 콘텐츠 너비에 맞게 확장

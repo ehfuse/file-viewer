@@ -8,6 +8,8 @@ export interface ViewerFile {
     mimeType?: string; // MIME 타입 (확장자가 없을 때 타입 판별 폴백)
     size?: number; // 파일 크기 (바이트, 표시용 — 선택)
     previewUrl?: string; // 사진 — 원본을 받는 동안 먼저 보일 작은 사진(이미 받아 둔 썸네일 등). 원본이 그려지면 바꿔 낀다(0.2.31)
+    group?: string; // 묶음 표시(0.2.41) — files 중 같은 값끼리 한 묶음이다. 지금 파일이 묶음이면 아래에 그 묶음의 썸네일 줄을 띄운다(채팅 사진 묶음 등)
+    thumbUrl?: string; // 썸네일 줄에 그릴 작은 그림(0.2.41) — 없으면 previewUrl · url
     [key: string]: unknown; // 소비처 부가 필드 (loadFile/onDownload 콜백에서 사용)
 }
 

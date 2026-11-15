@@ -180,6 +180,17 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     }, [open, initialIndex, fileList]);
     // 아래 전체 로직이 보는 활성 파일 — 인덱스가 바뀌면 로드 체인이 새 파일로 다시 돈다.
     const file = fileList.length > 0 ? (fileList[fileIndex] ?? keptFileProp) : keptFileProp;
+    // 지금 파일이 든 묶음의 순번들(0.2.41) — 두 장 이상일 때만 아래 썸네일 줄을 띄운다.
+    const groupIndices = useMemo(() => {
+        const group = typeof file?.group === "string" ? file.group : "";
+        if (!group || fileList.length < 2) return [] as number[];
+        return fileList.reduce<number[]>((list, item, index) => (item.group === group ? [...list, index] : list), []);
+    }, [file, fileList]);
+    const groupStripRef = useRef<HTMLDivElement | null>(null);
+    // 지금 썸네일이 줄 밖이면 보이게 민다.
+    useEffect(() => {
+        groupStripRef.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }, [fileIndex, groupIndices]);
     const lastDarkRef = useRef(false);
     const [loading, setLoading] = useState(true);
     const [showLoading, setShowLoading] = useState(false); // 로딩 표시 상태 관리
@@ -3209,6 +3220,56 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             >
                 {renderFileContent()}
             </DialogContent>
+
+            {/* 묶음 썸네일 줄(0.2.41) — 지금 파일이 묶음(group)이면 그 묶음 사진을 아래에 늘어놓고, 누르면 그 사진으로 간다. */}
+            {groupIndices.length > 1 ? (
+                <Box
+                    ref={groupStripRef}
+                    sx={{
+                        flexShrink: 0,
+                        display: "flex",
+                        justifyContent: "safe center",
+                        gap: 0.75,
+                        px: 1.5,
+                        py: 1,
+                        overflowX: "auto",
+                        backgroundColor: "#111",
+                        borderTop: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                >
+                    {groupIndices.map((index) => {
+                        const item = fileList[index];
+                        const src = String(item?.thumbUrl || item?.previewUrl || item?.url || "");
+                        const active = index === fileIndex;
+                        return (
+                            <Box
+                                key={index}
+                                component="button"
+                                type="button"
+                                data-active={active ? "true" : undefined}
+                                aria-label={item?.name}
+                                aria-current={active ? "true" : undefined}
+                                onClick={() => setFileIndex(index)}
+                                sx={{
+                                    flexShrink: 0,
+                                    width: 56,
+                                    height: 56,
+                                    p: 0,
+                                    border: active ? "2px solid #fff" : "2px solid transparent",
+                                    borderRadius: 1,
+                                    overflow: "hidden",
+                                    cursor: "pointer",
+                                    backgroundColor: "#222",
+                                    opacity: active ? 1 : 0.6,
+                                    "&:hover": { opacity: 1 },
+                                }}
+                            >
+                                {src ? <Box component="img" src={src} alt="" draggable={false} sx={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} /> : null}
+                            </Box>
+                        );
+                    })}
+                </Box>
+            ) : null}
 
             {/* Ctrl+C 이미지 복사 결과 안내 */}
             <Snackbar

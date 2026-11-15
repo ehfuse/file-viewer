@@ -7,6 +7,8 @@ export interface ViewerFile {
     mimeType?: string;
     size?: number;
     previewUrl?: string;
+    group?: string;
+    thumbUrl?: string;
     [key: string]: unknown;
 }
 export interface FileViewerProps {

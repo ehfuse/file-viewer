@@ -3181,11 +3181,12 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         color: "white",
                         backgroundColor: "rgba(0, 0, 0, 0.35)",
                         "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.55)" },
-                        width: 44,
-                        height: 44,
+                        // 0.2.42 — 44 → 56px, 화살표 30 → 40px(업무함 새 창 뷰어에서 작다는 지적).
+                        width: 56,
+                        height: 56,
                     }}
                 >
-                    <KeyboardArrowLeftIcon sx={{ fontSize: 30 }} />
+                    <KeyboardArrowLeftIcon sx={{ fontSize: 40 }} />
                 </IconButton>
             ) : null}
             {!floating && show.fileNav && !isMobile && fileList.length > 1 && fileIndex < fileList.length - 1 ? (
@@ -3201,11 +3202,12 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                         color: "white",
                         backgroundColor: "rgba(0, 0, 0, 0.35)",
                         "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.55)" },
-                        width: 44,
-                        height: 44,
+                        // 0.2.42 — 44 → 56px, 화살표 30 → 40px(업무함 새 창 뷰어에서 작다는 지적).
+                        width: 56,
+                        height: 56,
                     }}
                 >
-                    <KeyboardArrowRightIcon sx={{ fontSize: 30 }} />
+                    <KeyboardArrowRightIcon sx={{ fontSize: 40 }} />
                 </IconButton>
             ) : null}
 

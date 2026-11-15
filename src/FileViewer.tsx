@@ -940,6 +940,46 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         applyImageView(true);
     }, [scale, rotation, file, detectedMime, fileUrl, applyImageView, clampImageTranslate]);
 
+    /*
+     * Ctrl(⌘)+휠 확대 · 축소(0.2.40) — 사진은 커서 자리를 기준으로 키우고(가리킨 곳이 그 자리에 남는다), PDF 는 배율만 바꾼다.
+     * 막지 않으면 브라우저가 화면 전체를 확대해 뷰어 틀까지 커졌다. 노트북 터치패드의 두 손가락 확대도 ctrlKey 휠로 온다(작은 델타).
+     */
+    useEffect(() => {
+        if (!open) return;
+        const type = resolveFileType(file?.name || "", detectedMime);
+        if (type !== "image" && type !== "pdf") return;
+        const onWheel = (event: WheelEvent) => {
+            if (!event.ctrlKey && !event.metaKey) return;
+            event.preventDefault();
+            // 휠 한 칸(약 100) ≈ 1.16배 — 터치패드의 작은 델타는 그만큼 조금씩.
+            const factor = Math.exp(-event.deltaY * 0.0015);
+            if (type === "pdf") {
+                setScale((prev) => clampPdfScale(prev * factor));
+                return;
+            }
+            const view = imageViewRef.current;
+            const next = clampScale(view.scale * factor);
+            if (next === view.scale) return;
+            const viewport = imageViewportRef.current;
+            if (viewport) {
+                // 변환은 translate(t) scale(s) 이고 기준점은 가운데다 — 커서 자리 p 가 그대로 남도록 t' = p - (s'/s)(p - t).
+                const rect = viewport.getBoundingClientRect();
+                const px = event.clientX - (rect.left + rect.width / 2);
+                const py = event.clientY - (rect.top + rect.height / 2);
+                const ratio = next / view.scale;
+                view.tx = px - ratio * (px - view.tx);
+                view.ty = py - ratio * (py - view.ty);
+            }
+            view.scale = next;
+            // 툴바 배율과 같은 값으로 맞춘다 — 위 효과가 이동 범위를 다시 잡아 그린다.
+            setScale(next);
+        };
+        window.addEventListener("wheel", onWheel, { passive: false, capture: true });
+        return () => window.removeEventListener("wheel", onWheel, { capture: true });
+        // clampScale · clampPdfScale 은 고정 범위 함수다.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, file, detectedMime]);
+
     // 언마운트 시 예약된 이미지 프레임을 정리한다.
     useEffect(
         () => () => {

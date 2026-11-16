@@ -19,6 +19,7 @@ import {
     Drawer,
     IconButton,
     Box,
+    CircularProgress,
     Typography,
     Tooltip,
     Button,
@@ -135,6 +136,40 @@ const SlideLeft = React.forwardRef(function SlideLeft(props: any, ref: React.Ref
 const resolveFileType = (fileName: string, mime: string) => (mime === CONVERTED_PDF_MIME ? "pdf" : resolveFileTypeByName(fileName, mime));
 
 // 풀스크린 파일 미리보기 다이얼로그 컴포넌트
+
+/** react-pdf 가 여는 PDF 문서(PDFDocumentProxy) — Page 의 pdf 속성 꼴. */
+type PdfDocument = Exclude<NonNullable<React.ComponentProps<typeof Page>["pdf"]>, false>;
+
+/**
+ * 썸네일 한 칸 — 화면(썸네일 목록의 보이는 자리 · 위아래 400px)에 들어온 뒤에만 그린다. 한 번 그린 것은 그대로 둔다.
+ * 전에는 모든 쪽을 처음부터 그려 본문 첫 쪽과 그리기를 다퉜다(0.2.43).
+ */
+function LazyThumbnail({ ready, children }: { ready: boolean; children: React.ReactNode }) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const [seen, setSeen] = useState(false);
+    useEffect(() => {
+        const element = ref.current;
+        if (!element || seen) return;
+        if (typeof IntersectionObserver === "undefined") {
+            setSeen(true);
+            return;
+        }
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+                setSeen(true);
+                observer.disconnect();
+            }
+        }, { rootMargin: "400px 0px" });
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [seen]);
+    return (
+        <div ref={ref} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {seen && ready ? children : null}
+        </div>
+    );
+}
+
 export const FileViewer: React.FC<FileViewerProps> = ({
     open,
     onClose,
@@ -215,6 +250,10 @@ export const FileViewer: React.FC<FileViewerProps> = ({
 
     // PDF 관련 상태
     const [numPages, setNumPages] = useState<number>();
+    // 본문이 연 PDF 문서 — 썸네일이 같은 것을 쓴다(쪽마다 문서를 새로 열면 N+1 번 받아 해석해 느렸다, 0.2.43).
+    const [pdfDoc, setPdfDoc] = useState<PdfDocument | null>(null);
+    // 본문 첫 쪽이 그려졌는가 — 썸네일은 그 뒤에 그린다(첫 쪽과 그리기를 다투지 않게).
+    const [pdfFirstPainted, setPdfFirstPainted] = useState(false);
     const [pdfPassword, setPdfPassword] = useState<string>(""); // 사용자가 넣은 PDF 암호
     const [pdfPasswordAsk, setPdfPasswordAsk] = useState<"" | "need" | "wrong">(""); // 암호를 묻는 중인가(wrong = 틀려서 다시)
     const [pdfPasswordInput, setPdfPasswordInput] = useState<string>("");
@@ -413,8 +452,18 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         };
     }, [file, open]);
 
+    // 다른 파일로 바뀌면 앞 문서를 놓는다(썸네일이 옛 문서로 그리지 않게).
+    useEffect(() => {
+        setPdfDoc(null);
+        setPdfFirstPainted(false);
+    }, [fileUrl]);
+
     // PDF 관련 함수들
-    const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+    const onDocumentLoadSuccess = (pdf: PdfDocument) => {
+        const { numPages } = pdf;
+        setPdfDoc(pdf);
+        setPdfFirstPainted(false);
+        setLoading(false);
         pdfPageCacheRef.current.clear();
         setNumPages(numPages);
         setPageNumber(1);
@@ -476,6 +525,11 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             cMapPacked: true,
             standardFontDataUrl: `${pdfAssetBase}/standard_fonts/`, // 폰트 미내장 PDF 용
             wasmUrl: `${pdfAssetBase}/wasm/`, // JPEG2000/JBIG2 이미지 디코더(pdfjs 5.x)
+            // 그릴 쪽에 필요한 부분만 받는다(0.2.44) — 뒤에서 파일 전체를 마저 받으며 첫 쪽과 대역을 다투지 않게.
+            disableAutoFetch: true,
+            // 처음 요청으로 파일 전체를 흘려 받지 않는다 — 서버가 부분 받기(Accept-Ranges)를 하면 첫 요청은 머리만 보고 끊고 필요한 구간만 받는다(크롬 내장 뷰어와 같다).
+            // 부분 받기를 못 하는 주소 · blob 은 pdf.js 가 알아서 통째로 받는다.
+            disableStream: true,
             ...(pdfPassword && { password: pdfPassword }),
         }),
         [pdfAssetBase, pdfPassword]
@@ -486,6 +540,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     const handlePdfPassword = useCallback((_callback: (password: string | null) => void, reason: number) => {
         setPdfPassword("");
         setPdfPasswordAsk(reason === 2 ? "wrong" : "need"); // 2 = pdfjs PasswordResponses.INCORRECT_PASSWORD
+        setLoading(false); // 주소로 여는 PDF 는 문서가 열릴 때 로딩을 걷는데, 암호를 물으면 거기까지 못 간다(0.2.44)
     }, []);
     const submitPdfPassword = () => {
         if (!pdfPasswordInput) return;
@@ -670,6 +725,17 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         setHtmlContent(""); // HTML 내용 초기화
         setSpreadsheetData([]); // 스프레드시트 데이터 초기화
         setStyledBook(null);
+
+        // PDF 는 주소를 PDF 처리기에 바로 넘긴다(0.2.44) — 크롬처럼 필요한 부분만(Range) 받아 첫 쪽을 먼저 그린다.
+        // 전에는 파일을 끝까지 다 받은 뒤에 열어, 쪽이 많은(큰) 파일일수록 첫 쪽이 늦었다. 받기 · 인쇄는 그때 따로 받는다(loadedBlobRef 없음).
+        // 전체 로딩 표시는 바로 걷는다 — 그 표시가 떠 있는 동안은 본문(Document)을 그리지 않아 문서를 열 수 없다. 여는 동안은 본문 자리의 돌아가는 표시(Document loading)가 맡는다.
+        if (!file.blob && !loadFile && file.url && getFileType(file.name) === "pdf") {
+            loadedBlobRef.current = null;
+            setDetectedMime("application/pdf");
+            setFileUrl(file.url);
+            setLoading(false);
+            return;
+        }
 
         let converting = false;
         try {
@@ -1492,6 +1558,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
      * 그 외(리사이즈 등)는 스크롤을 건드리지 않는다.
      */
     const handlePageRenderSuccess = () => {
+        setPdfFirstPainted(true);
         const pageKey = `${pageNumber}:${rotation}`;
         rememberPdfPage();
         // 그려 둔 페이지를 얹어 두었으면 새로 다 그려졌으니 걷는다.
@@ -1803,16 +1870,20 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                 if (isMobile) setThumbnailDrawerOpen(false);
                             }}
                         >
-                            <Document file={fileUrl} options={pdfOptions} onPassword={handlePdfPassword} loading={<div style={{ display: "none" }} />}>
-                                <Page
-                                    pageNumber={index + 1}
-                                    scale={thumbnailScale}
-                                    loading={<div style={{ display: "none" }} />}
-                                    // 썸네일은 텍스트/주석 레이어가 필요 없다 — 레이어 CSS 의존을 없애고 렌더도 가볍게.
-                                    renderAnnotationLayer={false}
-                                    renderTextLayer={false}
-                                />
-                            </Document>
+                            {/* 본문이 연 문서를 그대로 쓴다(따로 열지 않는다). 보이는 썸네일만, 본문 첫 쪽이 그려진 뒤에 그린다(0.2.43). */}
+                            <LazyThumbnail ready={Boolean(pdfDoc) && pdfFirstPainted}>
+                                {pdfDoc ? (
+                                    <Page
+                                        pdf={pdfDoc}
+                                        pageNumber={index + 1}
+                                        scale={thumbnailScale}
+                                        loading={<div style={{ display: "none" }} />}
+                                        // 썸네일은 텍스트/주석 레이어가 필요 없다 — 레이어 CSS 의존을 없애고 렌더도 가볍게.
+                                        renderAnnotationLayer={false}
+                                        renderTextLayer={false}
+                                    />
+                                ) : null}
+                            </LazyThumbnail>
                         </Box>
                         <Typography
                             variant="caption"
@@ -2067,9 +2138,15 @@ export const FileViewer: React.FC<FileViewerProps> = ({
                                     onLoadSuccess={onDocumentLoadSuccess}
                                     onLoadError={(error) => {
                                         console.error("PDF 로드 오류:", error);
+                                        setLoading(false);
                                         setError(t.pdfLoadFailed);
                                     }}
-                                    loading={<div style={{ display: "none" }} />} // 로딩 표시 숨김
+                                    // 문서를 여는 동안(주소로 여는 PDF 는 필요한 부분을 받는 동안) 가운데 돌아가는 표시(0.2.44) — 전에는 다 받은 뒤 열어 숨겨 두었다.
+                                    loading={
+                                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: viewerSize.width || "100%", height: viewerSize.height || 400 }}>
+                                            <CircularProgress size={40} sx={{ color: "grey.400" }} />
+                                        </Box>
+                                    }
                                     error={
                                         <Box sx={{ textAlign: "center", p: 4 }}>
                                             <Typography color="error" variant="h6" sx={{ mb: 2 }}>

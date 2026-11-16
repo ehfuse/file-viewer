@@ -254,6 +254,8 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     const [pdfDoc, setPdfDoc] = useState<PdfDocument | null>(null);
     // 본문 첫 쪽이 그려졌는가 — 썸네일은 그 뒤에 그린다(첫 쪽과 그리기를 다투지 않게).
     const [pdfFirstPainted, setPdfFirstPainted] = useState(false);
+    // 같은 문서를 ref 로도 — 첫 쪽이 그려진 순간의 처리기는 문서가 열리기 전 상태를 들고 있을 수 있다(미리 그리기가 첫 넘김을 놓쳤다).
+    const pdfDocRef = useRef<PdfDocument | null>(null);
     const [pdfPassword, setPdfPassword] = useState<string>(""); // 사용자가 넣은 PDF 암호
     const [pdfPasswordAsk, setPdfPasswordAsk] = useState<"" | "need" | "wrong">(""); // 암호를 묻는 중인가(wrong = 틀려서 다시)
     const [pdfPasswordInput, setPdfPasswordInput] = useState<string>("");
@@ -455,6 +457,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     // 다른 파일로 바뀌면 앞 문서를 놓는다(썸네일이 옛 문서로 그리지 않게).
     useEffect(() => {
         setPdfDoc(null);
+        pdfDocRef.current = null;
         setPdfFirstPainted(false);
     }, [fileUrl]);
 
@@ -462,6 +465,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     const onDocumentLoadSuccess = (pdf: PdfDocument) => {
         const { numPages } = pdf;
         setPdfDoc(pdf);
+        pdfDocRef.current = pdf;
         setPdfFirstPainted(false);
         setLoading(false);
         pdfPageCacheRef.current.clear();
@@ -1269,7 +1273,8 @@ export const FileViewer: React.FC<FileViewerProps> = ({
      * 페이지를 다 그릴 때마다 그 그림을 복사해 둔다(배율 · 회전이 다르면 다른 그림이다 — 열쇠에 넣는다).
      * 그린 적 있는 페이지로 옮기면 복사본을 그 자리에 먼저 얹고, 새로 다 그려지면 걷는다. 그림은 메모리를 많이 먹어 최근 몇 장만 둔다.
      */
-    const PDF_PAGE_CACHE_MAX = 6;
+    // 6 → 12(0.2.45) — 앞뒤 쪽을 미리 그려 두므로(prerenderPdfNeighbors) 지나온 쪽과 함께 넉넉히 둔다. 메모리를 더 써서 넘길 때 흰 화면을 없앤다.
+    const PDF_PAGE_CACHE_MAX = 12;
     // 그림과 함께 화면에 보이던 크기(CSS px)를 둔다 — 페이지를 옮기는 순간 react-pdf 의 canvas 는 기본 크기(300×150)로
     // 바뀌어 있을 때가 있어, 그 canvas 를 재면 작은 그림이 보였다가 커졌다(0.2.36 사용자 지적).
     const pdfPageCacheRef = useRef(new Map<string, { canvas: HTMLCanvasElement; width: number; height: number }>());
@@ -1333,6 +1338,56 @@ export const FileViewer: React.FC<FileViewerProps> = ({
         outer.appendChild(snap);
         pdfSnapshotRef.current = snap;
         return true;
+    };
+
+    /**
+     * 앞뒤 쪽을 미리 그려 둔다(0.2.45 — 사용자 지적 "쪽을 넘길 때 흰 화면이 잠깐 나오고 그려진다, 메모리를 써서라도 빠르게").
+     * 처음 가는 쪽은 받고(부분 받기) 그릴 때까지 비어 있었다. 지금 쪽이 그려지면 다음 · 이전 · 다다음 쪽을 같은 폭 · 배율 · 회전으로
+     * 화면 밖 canvas 에 그려 그린 쪽 저장소(pdfPageCacheRef)에 넣는다 — 넘기면 그 그림이 먼저 얹힌다(showCachedPdfPage).
+     * 다른 쪽으로 옮기거나 배율을 바꾸면 하던 것은 버린다(gen).
+     */
+    const prerenderGenRef = useRef(0);
+    const prerenderPdfNeighbors = (attempt = 0) => {
+        const doc = pdfDocRef.current;
+        if (!doc) return;
+        const gen = ++prerenderGenRef.current;
+        const width = pdfRenderWidth;
+        const display = pdfDisplayWidth;
+        const userRotation = rotation;
+        const current = pageNumber;
+        const keyOf = (n: number) => `${n}:${userRotation}:${width}`;
+        const targets = [current + 1, current - 1, current + 2].filter((n) => n >= 1 && n <= doc.numPages && !pdfPageCacheRef.current.has(keyOf(n)));
+        void (async () => {
+            for (const n of targets) {
+                if (gen !== prerenderGenRef.current) return;
+                try {
+                    const page = await doc.getPage(n);
+                    const rot = (((page.rotate + userRotation) % 360) + 360) % 360;
+                    const base = page.getViewport({ scale: 1, rotation: rot });
+                    const ratio = window.devicePixelRatio || 1;
+                    const viewport = page.getViewport({ scale: (width / base.width) * ratio, rotation: rot });
+                    const canvas = document.createElement("canvas");
+                    canvas.width = Math.floor(viewport.width);
+                    canvas.height = Math.floor(viewport.height);
+                    const context = canvas.getContext("2d");
+                    if (!context) return;
+                    await page.render({ canvasContext: context, viewport, canvas } as Parameters<typeof page.render>[0]).promise;
+                    if (gen !== prerenderGenRef.current) return;
+                    const cache = pdfPageCacheRef.current;
+                    cache.delete(keyOf(n));
+                    cache.set(keyOf(n), { canvas, width: display, height: (display * base.height) / base.width });
+                    while (cache.size > PDF_PAGE_CACHE_MAX) {
+                        const oldest = cache.keys().next().value;
+                        if (oldest === undefined) break;
+                        cache.delete(oldest);
+                    }
+                } catch {
+                    // 문서를 막 연 때는 썸네일이 같은 쪽을 그리며 그리기가 취소되기도 한다 — 잠깐 뒤 다시(3번까지). 문서가 닫혔으면 gen 이 달라 멈춘다.
+                    if (gen === prerenderGenRef.current && attempt < 3) window.setTimeout(() => gen === prerenderGenRef.current && prerenderPdfNeighbors(attempt + 1), 800);
+                    return;
+                }
+            }
+        })();
     };
 
     /** 스냅샷 오버레이를 제거하고 숨겨둔 Document 를 되살린다. */
@@ -1582,9 +1637,12 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     const prevPdfPageRef = useRef(pageNumber);
     useLayoutEffect(() => {
         if (prevPdfPageRef.current === pageNumber) return;
+        const previousPage = prevPdfPageRef.current;
         prevPdfPageRef.current = pageNumber;
         if (pdfPinchRestoreRef.current) return;
-        const cached = pdfPageCacheRef.current.get(pdfPageKeyOf(pageNumber));
+        // 새 쪽 그림이 아직 없으면(미리 그리기 전) 방금까지 보던 쪽을 그대로 덮어 둔다 — 새 쪽이 다 그려지면 걷힌다(0.2.45).
+        // 흰 화면 대신 앞 쪽이 잠깐 남았다가 바뀐다.
+        const cached = pdfPageCacheRef.current.get(pdfPageKeyOf(pageNumber)) ?? pdfPageCacheRef.current.get(pdfPageKeyOf(previousPage));
         if (pdfNavOverlayRef.current) {
             pdfNavOverlayRef.current = false;
             removePdfSnapshotOverlay();
@@ -1813,6 +1871,15 @@ export const FileViewer: React.FC<FileViewerProps> = ({
     // (캡을 넘는 구간은 canvas 를 CSS 로 늘려 보여준다 → 고배율에서 약간 소프트).
     const pdfDisplayWidth = Math.round(fitWidth * scale);
     const pdfDisplayOverscaled = pdfDisplayWidth > pdfRenderWidth;
+
+    // 넘길 쪽을 뒤에서 미리 받아 그려 둔다(0.2.45) — 쪽 · 폭 · 회전 · 문서가 바뀌고 잠깐(0.4초) 뒤.
+    // 첫 쪽이 그려진 순간에 바로 그리면 썸네일 목록이 서며 폭이 바뀌어, 다른 폭으로 그린 것이 쓰이지 못했다.
+    useEffect(() => {
+        if (!pdfDoc) return;
+        const timer = window.setTimeout(prerenderPdfNeighbors, 400);
+        return () => window.clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pdfDoc, pageNumber, pdfRenderWidth, rotation]);
 
     // 모바일 PDF 오버스크롤 여백: 문서 둘레에 (뷰포트 − 최소가시폭)만큼 스크롤 여백을 둬서
     // 핀치/스크롤로 문서를 구석까지 밀어둘 수 있게 한다(최소 PDF_OVERSCROLL_MIN_VISIBLE 은 남음).
